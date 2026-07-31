@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.property_radar"
+    namespace = "com.nitin.geopropertyintelligence"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

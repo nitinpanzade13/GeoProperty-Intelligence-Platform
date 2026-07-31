@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -19,89 +20,148 @@ class MapScreen extends ConsumerStatefulWidget {
 }
 
 class _MapScreenState extends ConsumerState<MapScreen> {
-  GoogleMapController? _mapController;
-  MapType _currentMapType = MapType.hybrid;
-  LatLng _currentLocation = const LatLng(18.5204, 73.8567);
-  final Set<Marker> _markers = {};
-  final Set<Polygon> _polygons = {};
+  final MapController _mapController = MapController();
+
+  LatLng _userLocation = const LatLng(18.5204, 73.8567);
+  List<Marker> _markers = [];
+  List<Polygon> _polygons = [];
+
   bool _isLoadingProperty = false;
+  PropertyModel? _loadedProperty;
 
   @override
   void initState() {
     super.initState();
-    _initMapLayers();
-    _fetchLocationAndProperty();
+    _initUserLocationAndProperty();
   }
 
-  void _initMapLayers() {
-    _markers.add(
+  Future<void> _initUserLocationAndProperty() async {
+    _updateUserLocationMarker(_userLocation);
+    await _locateMe(moveCamera: false);
+    await _fetchPropertyDetails();
+  }
+
+  void _updateUserLocationMarker(LatLng position) {
+    setState(() {
+      _userLocation = position;
+      _rebuildMarkers();
+    });
+  }
+
+  void _rebuildMarkers() {
+    final List<Marker> newMarkers = [
+      // Current GPS Location Marker
       Marker(
-        markerId: const MarkerId('current_location'),
-        position: _currentLocation,
-        infoWindow: const InfoWindow(title: 'Current Location', snippet: 'Shivajinagar, Pune'),
+        point: _userLocation,
+        width: 50,
+        height: 50,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.secondary.withValues(alpha: 0.25),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: const Center(
+            child: Icon(
+              Icons.my_location_rounded,
+              color: AppColors.secondary,
+              size: 26,
+            ),
+          ),
+        ),
       ),
-    );
+    ];
+
+    // Survey Marker if property loaded
+    if (_loadedProperty != null && _loadedProperty!.boundaryPoints.isNotEmpty) {
+      final firstPoint = _loadedProperty!.boundaryPoints.first;
+      final surveyLatLng = LatLng(firstPoint.latitude, firstPoint.longitude);
+
+      newMarkers.add(
+        Marker(
+          point: surveyLatLng,
+          width: 44,
+          height: 44,
+          child: Tooltip(
+            message:
+                'Survey No. ${_loadedProperty!.surveyDetails.surveyNumber}',
+            child: Container(
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black38,
+                    blurRadius: 6,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.location_on_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    _markers = newMarkers;
   }
 
-  Future<void> _fetchLocationAndProperty() async {
-    if (!mounted) return;
-    setState(() => _isLoadingProperty = true);
-
+  Future<void> _locateMe({bool moveCamera = true}) async {
     try {
       final locationService = ref.read(locationServiceProvider);
       final pos = await locationService.getCurrentPosition();
 
       if (pos != null) {
-        _currentLocation = LatLng(pos.latitude, pos.longitude);
-        _markers.add(
-          Marker(
-            markerId: const MarkerId('current_location'),
-            position: _currentLocation,
-            infoWindow: const InfoWindow(title: 'Live GPS Fix'),
-          ),
-        );
+        final newPos = LatLng(pos.latitude, pos.longitude);
+        _updateUserLocationMarker(newPos);
+
+        if (moveCamera) {
+          _mapController.move(newPos, 16.0);
+        }
       }
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      debugPrint('Location error: $e');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  Future<void> _fetchPropertyDetails() async {
+    if (!mounted) return;
+    setState(() => _isLoadingProperty = true);
 
     try {
       final propertyRepo = ref.read(propertyRepositoryProvider);
       final sNum = widget.initialSurveyNumber ?? '142';
-      final result = await propertyRepo.getPropertyDetails('SURV-$sNum', surveyNumber: sNum);
+      final result = await propertyRepo.getPropertyDetails('SURV-$sNum',
+          surveyNumber: sNum);
 
       if (result is Success<PropertyModel>) {
         final prop = result.data;
+        _loadedProperty = prop;
+
         if (prop.boundaryPoints.isNotEmpty) {
-          final List<LatLng> polyLatLngs = prop.boundaryPoints
+          final List<LatLng> surveyPoints = prop.boundaryPoints
               .map((pt) => LatLng(pt.latitude, pt.longitude))
               .toList();
 
-          if (mounted) {
-            setState(() {
-              _polygons.clear();
-              _polygons.add(
-                Polygon(
-                  polygonId: PolygonId('poly_${prop.propertyId}'),
-                  points: polyLatLngs,
-                  strokeWidth: 3,
-                  strokeColor: AppColors.secondary,
-                  fillColor: AppColors.secondary.withValues(alpha: 0.35),
-                ),
-              );
+          setState(() {
+            _polygons = [
+              Polygon(
+                points: surveyPoints,
+                borderStrokeWidth: 3.0,
+                borderColor: AppColors.secondary,
+                color: AppColors.secondary.withValues(alpha: 0.35),
+              ),
+            ];
+            _rebuildMarkers();
+          });
 
-              _markers.add(
-                Marker(
-                  markerId: MarkerId('plot_${prop.propertyId}'),
-                  position: polyLatLngs.first,
-                  infoWindow: InfoWindow(
-                    title: 'Survey No. ${prop.surveyDetails.surveyNumber}',
-                    snippet: 'Area: ${prop.surveyDetails.areaSqMeters} sq.m',
-                  ),
-                ),
-              );
-            });
-          }
-
-          _fitCameraToBounds(polyLatLngs);
+          _autoFitPolygon(surveyPoints);
         }
       }
     } catch (_) {}
@@ -111,46 +171,36 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  void _fitCameraToBounds(List<LatLng> points) {
-    if (points.isEmpty || _mapController == null) return;
+  void _autoFitPolygon(List<LatLng> points) {
+    if (points.isEmpty) return;
 
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (!mounted || _mapController == null) return;
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
       try {
-        double minLat = points.first.latitude;
-        double maxLat = points.first.latitude;
-        double minLng = points.first.longitude;
-        double maxLng = points.first.longitude;
-
-        for (var pt in points) {
-          if (pt.latitude < minLat) minLat = pt.latitude;
-          if (pt.latitude > maxLat) maxLat = pt.latitude;
-          if (pt.longitude < minLng) minLng = pt.longitude;
-          if (pt.longitude > maxLng) maxLng = pt.longitude;
-        }
-
-        final bounds = LatLngBounds(
-          southwest: LatLng(minLat - 0.001, minLng - 0.001),
-          northeast: LatLng(maxLat + 0.001, maxLng + 0.001),
+        final bounds = LatLngBounds.fromPoints(points);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.all(50.0),
+          ),
         );
-
-        _mapController?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
       } catch (_) {
-        // Fallback safely to center target position without crashing
-        _mapController?.animateCamera(CameraUpdate.newLatLng(points.first));
+        _mapController.move(points.first, 16.0);
       }
     });
   }
 
   void _zoomIn() {
     try {
-      _mapController?.animateCamera(CameraUpdate.zoomIn());
+      final currentZoom = _mapController.camera.zoom;
+      _mapController.move(_mapController.camera.center, currentZoom + 1.0);
     } catch (_) {}
   }
 
   void _zoomOut() {
     try {
-      _mapController?.animateCamera(CameraUpdate.zoomOut());
+      final currentZoom = _mapController.camera.zoom;
+      _mapController.move(_mapController.camera.center, currentZoom - 1.0);
     } catch (_) {}
   }
 
@@ -159,28 +209,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Google Map Widget
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _currentLocation,
-              zoom: 16.0,
+          // FlutterMap OpenStreetMap View
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _userLocation,
+              initialZoom: 16.0,
+              minZoom: 4.0,
+              maxZoom: 19.0,
+              interactionOptions: InteractionOptions(
+                flags: InteractiveFlag.all,
+              ),
             ),
-            mapType: _currentMapType,
-            markers: _markers,
-            polygons: _polygons,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            compassEnabled: true,
-            onMapCreated: (controller) {
-              _mapController = controller;
-              if (_polygons.isNotEmpty) {
-                _fitCameraToBounds(_polygons.first.points);
-              }
-            },
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.geopropertyintelligence',
+              ),
+              PolygonLayer(polygons: _polygons),
+              MarkerLayer(markers: _markers),
+            ],
           ),
 
-          // Top Floating Bar
+          // Top Floating GlassCard Header
           Positioned(
             top: 50,
             left: 16,
@@ -201,32 +252,39 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       children: [
                         const Text(
                           'GIS Land Intelligence Map',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         Text(
                           _isLoadingProperty
-                              ? 'Fetching BhuNaksha GIS Extents...'
-                              : 'Live Layer: Survey Boundary Polygons',
-                          style: const TextStyle(fontSize: 11, color: AppColors.secondary),
+                              ? 'Fetching OpenStreetMap Boundary Extents...'
+                              : 'Layer: OpenStreetMap + Survey Polygon',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.secondary),
                         ),
                       ],
                     ),
                   ),
+                  if (_isLoadingProperty)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.secondary,
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
 
-          // Side Map Controls
+          // Floating Map Controls (Locate Me, Zoom In, Zoom Out)
           Positioned(
             right: 16,
             bottom: 40,
             child: MapControls(
-              currentMapType: _currentMapType,
-              onMapTypeChanged: (type) {
-                setState(() => _currentMapType = type);
-              },
-              onLocateMe: _fetchLocationAndProperty,
+              onLocateMe: () => _locateMe(moveCamera: true),
               onZoomIn: _zoomIn,
               onZoomOut: _zoomOut,
             ),

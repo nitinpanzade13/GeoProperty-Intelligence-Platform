@@ -18,15 +18,18 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # CORS Configuration
+    # Explicit origins for fixed ports, regex pattern for dynamic Flutter Web ports on localhost / 127.0.0.1
     CORS_ORIGINS: List[str] = [
         "http://localhost",
         "http://localhost:8000",
         "http://localhost:3000",
-        "*"
+        "http://127.0.0.1",
+        "http://127.0.0.1:8000",
     ]
+    CORS_ORIGIN_REGEX: str = r"^http://(localhost|127\.0\.0\.1)(:\d+)?$"
 
     # HTTPX Client Configuration
-    HTTP_TIMEOUT_SECONDS: float = 15.0
+    HTTP_TIMEOUT_SECONDS: float = 30.0
     HTTP_MAX_RETRIES: int = 3
     HTTP_POOL_LIMITS_MAX_KEEPALIVE: int = 10
     HTTP_POOL_LIMITS_MAX_CONNECTIONS: int = 100

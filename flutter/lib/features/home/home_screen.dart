@@ -84,7 +84,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.search_rounded),
-            onPressed: () => context.push(Routes.search),
+            onPressed: () => context.push(Routes.propertySearch),
           ),
           IconButton(
             icon: const Icon(Icons.settings_rounded),
@@ -141,10 +141,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               QuickActionsGrid(
                 items: [
                   QuickActionItem(
-                    title: 'Surveys',
-                    icon: Icons.assignment_rounded,
+                    title: 'Search Record',
+                    icon: Icons.travel_explore_rounded,
                     color: AppColors.primary,
-                    onTap: () => context.push(Routes.survey),
+                    onTap: () => context.push(Routes.propertySearch),
                   ),
                   QuickActionItem(
                     title: 'Live Map',
@@ -153,16 +153,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onTap: () => context.push(Routes.map),
                   ),
                   QuickActionItem(
+                    title: 'Surveys',
+                    icon: Icons.assignment_rounded,
+                    color: AppColors.tertiary,
+                    onTap: () => context.push(Routes.survey),
+                  ),
+                  QuickActionItem(
                     title: 'Favorites',
                     icon: Icons.star_rounded,
                     color: AppColors.warning,
                     onTap: () => context.push(Routes.favorites),
-                  ),
-                  QuickActionItem(
-                    title: 'Profile',
-                    icon: Icons.person_rounded,
-                    color: AppColors.tertiary,
-                    onTap: () => context.push(Routes.profile),
                   ),
                 ],
               ),

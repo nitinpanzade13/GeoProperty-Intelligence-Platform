@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../config/app_config.dart';
 import '../utils/logger.dart';
@@ -14,7 +15,6 @@ class ApiClient {
         connectTimeout: Duration(milliseconds: config.connectTimeoutMs),
         receiveTimeout: Duration(milliseconds: config.receiveTimeoutMs),
         headers: {
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
       ),
@@ -27,12 +27,20 @@ class ApiClient {
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          AppLogger.i('HTTP Response [${response.statusCode}] <= ${response.requestOptions.uri}');
+          AppLogger.i(
+              'HTTP Response [${response.statusCode}] <= ${response.requestOptions.uri}');
           return handler.next(response);
         },
         onError: (DioException error, handler) async {
-          AppLogger.e('HTTP Error [${error.response?.statusCode}] <= ${error.requestOptions.uri}', error);
-          if (_shouldRetry(error)) {
+          AppLogger.e(
+              'HTTP Error [${error.response?.statusCode}] <= ${error.requestOptions.uri}',
+              error);
+
+          final int retryCount =
+              error.requestOptions.extra['retry_count'] as int? ?? 0;
+
+          if (_shouldRetry(error, retryCount)) {
+            error.requestOptions.extra['retry_count'] = retryCount + 1;
             try {
               final response = await _retry(error.requestOptions);
               return handler.resolve(response);
@@ -51,7 +59,16 @@ class ApiClient {
     AppLogger.i('ApiClient base URL updated to: $newUrl');
   }
 
-  bool _shouldRetry(DioException error) {
+  bool _shouldRetry(DioException error, int retryCount) {
+    // Prevent infinite retry loops by enforcing maximum 1 retry attempt
+    if (retryCount >= 1) return false;
+
+    // Avoid blind retries on Web CORS / XMLHttpRequest failures
+    if (kIsWeb) {
+      return error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout;
+    }
+
     return error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
         error.type == DioExceptionType.connectionError;
@@ -61,6 +78,7 @@ class ApiClient {
     final options = Options(
       method: requestOptions.method,
       headers: requestOptions.headers,
+      extra: requestOptions.extra,
     );
     return _dio.request<dynamic>(
       requestOptions.path,
@@ -97,11 +115,19 @@ class ApiClient {
     CancelToken? cancelToken,
   }) async {
     try {
+      // Pass Content-Type for POST requests with body payloads
+      final postOptions = (options ?? Options()).copyWith(
+        headers: {
+          'Content-Type': 'application/json',
+          ...?options?.headers,
+        },
+      );
+
       final response = await _dio.post(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: options,
+        options: postOptions,
         cancelToken: cancelToken,
       );
       return _unwrapResponse(response);

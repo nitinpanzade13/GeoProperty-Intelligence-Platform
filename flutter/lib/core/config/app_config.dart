@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 enum EnvironmentType { dev, staging, prod }
 
 class AppConfig {
@@ -9,20 +11,48 @@ class AppConfig {
   const AppConfig({
     required this.apiBaseUrl,
     required this.environment,
-    this.connectTimeoutMs = 15000,
-    this.receiveTimeoutMs = 15000,
+    this.connectTimeoutMs = 30000,
+    this.receiveTimeoutMs = 30000,
   });
 
-  /// Factory for development.
-  /// Set default to local Wi-Fi LAN IP (http://10.193.171.183:8000/api)
-  /// so physical mobile devices (e.g. Motorola Edge 50 Fusion) can connect seamlessly over Wi-Fi.
+  /// Development Configuration
+  ///
+  /// Platform-Aware Host Selection:
+  /// - Flutter Web (Chrome): localhost (Backend running on same computer)
+  /// - Mobile (Android/iOS): Local Wi-Fi LAN IP (10.193.171.183)
+  /// - customIp: Overrides host if specified
   factory AppConfig.development({String? customIp}) {
-    final String targetIp = customIp ?? '10.193.171.183';
-    final baseUrl = 'http://$targetIp:8000/api';
+    late final String host;
+
+    if (customIp != null && customIp.isNotEmpty) {
+      host = customIp;
+    } else if (kIsWeb) {
+      // Flutter Web in Chrome on same PC MUST use localhost
+      host = 'localhost';
+    } else {
+      // Mobile devices on same Wi-Fi network use PC's LAN IP
+      host = '10.193.171.183';
+    }
 
     return AppConfig(
-      apiBaseUrl: baseUrl,
+      apiBaseUrl: 'http://$host:8000/api',
       environment: EnvironmentType.dev,
+      connectTimeoutMs: 30000,
+      receiveTimeoutMs: 30000,
+    );
+  }
+
+  factory AppConfig.staging() {
+    return const AppConfig(
+      apiBaseUrl: 'https://staging.example.com/api',
+      environment: EnvironmentType.staging,
+    );
+  }
+
+  factory AppConfig.production() {
+    return const AppConfig(
+      apiBaseUrl: 'https://api.example.com/api',
+      environment: EnvironmentType.prod,
     );
   }
 }
