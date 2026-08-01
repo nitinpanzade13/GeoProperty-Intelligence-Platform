@@ -58,7 +58,7 @@ class AppRouter {
               taluka: extra['taluka'] as String? ?? 'Haveli',
               village: extra['village'] as String? ?? 'Shivajinagar',
               surveyNumber: extra['surveyNumber'] as String? ?? '142',
-              gisCode: extra['gisCode'] as String? ?? 'MH-2701-270101-52001',
+              gisCode: extra['gisCode'] as String? ?? 'RVM0501270500010046290000',
             );
           }
           return PropertySearchDetailsScreen(
@@ -85,13 +85,22 @@ class AppRouter {
             taluka: 'Haveli',
             village: 'Shivajinagar',
             surveyNumber: '142',
-            gisCode: 'MH-2701-270101-52001',
+            gisCode: 'RVM0501270500010046290000',
           );
         },
       ),
       GoRoute(
         path: Routes.map,
         builder: (context, state) {
+          if (state.extra is Map<String, dynamic>) {
+            final extraMap = state.extra as Map<String, dynamic>;
+            return MapScreen(
+              initialSurveyNumber: extraMap['surveyNumber'] as String?,
+              initialGisCode: extraMap['gisCode'] as String?,
+              initialLatitude: extraMap['latitude'] as double?,
+              initialLongitude: extraMap['longitude'] as double?,
+            );
+          }
           final surveyNum = state.extra as String?;
           return MapScreen(initialSurveyNumber: surveyNum);
         },

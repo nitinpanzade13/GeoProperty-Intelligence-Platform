@@ -1,5 +1,5 @@
 import re
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from app.providers.base_provider import LandRecordsProvider
 from app.models.domain_models import (
     District,
@@ -19,15 +19,17 @@ from app.utils.geometry_parser import GeometryParser
 from app.utils.owner_parser import OwnerParser
 from app.core.config import settings
 from app.core.logging import logger
-from app.core.exceptions import NotFoundException, ValidationException
+from app.core.exceptions import NotFoundException, ValidationException, ExternalServiceException
 
 
 class MaharashtraLandRecordsProvider(LandRecordsProvider):
     """
-    Concrete implementation of LandRecordsProvider for Maharashtra land records & BhuNaksha GIS services.
-    Encapsulates state administrative hierarchy resolutions, numerical sorting of surveys,
-    WKT MULTIPOLYGON parsing, multi-owner extraction, and TTL caching.
+    Production implementation of LandRecordsProvider for Maharashtra BhuNaksha REST services.
+    Consumes live REST endpoints at https://mahabhunakasha.mahabhumi.gov.in/rest.
+    No fabricated plot IDs, synthetic fallback GIS codes, or mock data are used.
     """
+
+    REST_BASE_URL = "https://mahabhunakasha.mahabhumi.gov.in/rest"
 
     def __init__(
         self,
@@ -36,24 +38,51 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
     ):
         self.http_client = http_client
         self.cache = cache
-        self.base_url = settings.MH_BHUNAKSHA_BASE_URL
+        self.base_url = getattr(settings, "MH_BHUNAKSHA_BASE_URL", self.REST_BASE_URL)
 
     async def get_districts(self) -> List[District]:
         cache_key = "mh_districts"
         cached = self.cache.get(cache_key)
         if cached:
+            logger.info("Cache hit for mh_districts")
             return cached
 
+        url = f"{self.REST_BASE_URL}/VillageMapService/ListsAfterLevelGeoref"
+        data = {
+            "state": "27",
+            "level": "1",
+            "codes": "R,",
+            "hasmap": "true",
+        }
+
+        try:
+            response = await self.http_client.request("POST", url, data=data)
+            raw_json = response.json()
+        except Exception as exc:
+            logger.error(f"Failed to fetch live districts from BhuNaksha REST API: {exc}")
+            raise ExternalServiceException(detail=f"Districts API request failed: {str(exc)}")
+
+        # Flatten nested list response [[{"code":"26","value":"Ahmednagar"},...]]
+        items = (
+            raw_json[0]
+            if isinstance(raw_json, list) and len(raw_json) > 0 and isinstance(raw_json[0], list)
+            else (raw_json if isinstance(raw_json, list) else [])
+        )
+
         districts = [
-            District(district_code="2701", district_name="Pune", state_code="27"),
-            District(district_code="2702", district_name="Mumbai City", state_code="27"),
-            District(district_code="2703", district_name="Mumbai Suburban", state_code="27"),
-            District(district_code="2704", district_name="Thane", state_code="27"),
-            District(district_code="2705", district_name="Nashik", state_code="27"),
-            District(district_code="2706", district_name="Nagpur", state_code="27"),
-            District(district_code="2707", district_name="Chhatrapati Sambhajinagar", state_code="27"),
-            District(district_code="2708", district_name="Kolhapur", state_code="27"),
+            District(
+                district_code=str(d.get("code")),
+                district_name=str(d.get("value")),
+                state_code="27",
+            )
+            for d in items
+            if isinstance(d, dict) and "code" in d and "value" in d
         ]
+
+        if not districts:
+            logger.warning("Live BhuNaksha API returned empty district list.")
+            raise NotFoundException(detail="No districts found from Maharashtra BhuNaksha service.")
+
         self.cache.set(cache_key, districts, ttl_seconds=settings.CACHE_VILLAGE_TTL_SECONDS)
         return districts
 
@@ -61,117 +90,173 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
         cache_key = f"mh_talukas_{district_code}"
         cached = self.cache.get(cache_key)
         if cached:
+            logger.info(f"Cache hit for mh_talukas_{district_code}")
             return cached
 
-        talukas_map = {
-            "2701": [
-                Taluka(taluka_code="270101", taluka_name="Haveli", district_code="2701"),
-                Taluka(taluka_code="270102", taluka_name="Mulshi", district_code="2701"),
-                Taluka(taluka_code="270103", taluka_name="Pune City", district_code="2701"),
-                Taluka(taluka_code="270104", taluka_name="Maval", district_code="2701"),
-            ],
-            "2704": [
-                Taluka(taluka_code="270401", taluka_name="Kalyan", district_code="2704"),
-                Taluka(taluka_code="270402", taluka_name="Thane", district_code="2704"),
-            ],
+        url = f"{self.REST_BASE_URL}/VillageMapService/ListsAfterLevelGeoref"
+        data = {
+            "state": "27",
+            "level": "2",
+            "codes": f"R,{district_code},",
+            "hasmap": "true",
         }
 
-        result = talukas_map.get(
-            district_code,
-            [
-                Taluka(taluka_code=f"{district_code}01", taluka_name="Central Taluka", district_code=district_code)
-            ],
+        try:
+            response = await self.http_client.request("POST", url, data=data)
+            raw_json = response.json()
+        except Exception as exc:
+            logger.error(f"Failed to fetch live talukas for district {district_code}: {exc}")
+            raise ExternalServiceException(detail=f"Talukas API request failed: {str(exc)}")
+
+        items = (
+            raw_json[0]
+            if isinstance(raw_json, list) and len(raw_json) > 0 and isinstance(raw_json[0], list)
+            else (raw_json if isinstance(raw_json, list) else [])
         )
-        self.cache.set(cache_key, result, ttl_seconds=settings.CACHE_VILLAGE_TTL_SECONDS)
-        return result
+
+        talukas = [
+            Taluka(
+                taluka_code=str(t.get("code")),
+                taluka_name=str(t.get("value")),
+                district_code=district_code,
+            )
+            for t in items
+            if isinstance(t, dict) and "code" in t and "value" in t
+        ]
+
+        if not talukas:
+            logger.warning(f"No talukas found for district code: {district_code}")
+            raise NotFoundException(detail=f"No talukas found for district code {district_code}.")
+
+        self.cache.set(cache_key, talukas, ttl_seconds=settings.CACHE_VILLAGE_TTL_SECONDS)
+        return talukas
 
     async def get_villages(self, district_code: str, taluka_code: str) -> List[Village]:
         cache_key = f"mh_villages_{district_code}_{taluka_code}"
         cached = self.cache.get(cache_key)
         if cached:
+            logger.info(f"Cache hit for mh_villages_{district_code}_{taluka_code}")
             return cached
 
-        villages = [
-            Village(
-                village_code="52001",
-                village_name="Shivajinagar",
-                taluka_code=taluka_code,
-                gis_code=f"MH-{district_code}-{taluka_code}-52001",
-            ),
-            Village(
-                village_code="52002",
-                village_name="Kothrud",
-                taluka_code=taluka_code,
-                gis_code=f"MH-{district_code}-{taluka_code}-52002",
-            ),
-            Village(
-                village_code="52003",
-                village_name="Hinjawadi",
-                taluka_code=taluka_code,
-                gis_code=f"MH-{district_code}-{taluka_code}-52003",
-            ),
-            Village(
-                village_code="52004",
-                village_name="Baner",
-                taluka_code=taluka_code,
-                gis_code=f"MH-{district_code}-{taluka_code}-52004",
-            ),
-        ]
+        url = f"{self.REST_BASE_URL}/VillageMapService/ListsAfterLevelGeoref"
+        data = {
+            "state": "27",
+            "level": "3",
+            "codes": f"R,{district_code},{taluka_code},",
+            "hasmap": "true",
+        }
+
+        try:
+            response = await self.http_client.request("POST", url, data=data)
+            raw_json = response.json()
+        except Exception as exc:
+            logger.error(f"Failed to fetch live villages for {district_code}/{taluka_code}: {exc}")
+            raise ExternalServiceException(detail=f"Villages API request failed: {str(exc)}")
+
+        items = (
+            raw_json[0]
+            if isinstance(raw_json, list) and len(raw_json) > 0 and isinstance(raw_json[0], list)
+            else (raw_json if isinstance(raw_json, list) else [])
+        )
+
+        villages = []
+        for v in items:
+            if isinstance(v, dict) and "code" in v and "value" in v:
+                v_code = str(v.get("code")).strip()
+                v_name = str(v.get("value")).strip()
+                gis_c = await self.get_village_gis_code(district_code, taluka_code, v_code)
+                
+
+                villages.append(
+                    Village(
+                        village_code=v_code,
+                        village_name=v_name,
+                        taluka_code=taluka_code,
+                        gis_code=gis_c,
+                    )
+                )
+
+        if not villages:
+            logger.warning(f"No villages found for district: {district_code}, taluka: {taluka_code}")
+            raise NotFoundException(detail=f"No villages found for taluka code {taluka_code}.")
+
         self.cache.set(cache_key, villages, ttl_seconds=settings.CACHE_VILLAGE_TTL_SECONDS)
         return villages
 
     async def get_village_gis_code(
         self, district_code: str, taluka_code: str, village_code: str
     ) -> str:
-        gis_code = f"MH-{district_code}-{taluka_code}-{village_code}"
-        logger.info(f"Resolved GIS code: {gis_code}")
+        """
+        Constructs verified BhuNaksha GIS code using the strict 18-digit deterministic algorithm:
+        district = village_code[2:4]
+        taluka = village_code[6:8]
+        gis_code = f"RVM{district}{taluka}{village_code}"
+
+        Validates that village_code is exactly an 18-digit numeric string.
+        Raises ValidationException if village_code does not conform.
+        """
+        clean_vcode = str(village_code).strip()
+        if not re.match(r"^\d{18}$", clean_vcode):
+            raise ValidationException(
+                detail=f"Invalid village_code '{village_code}'. Must be an 18-digit numeric string conforming to BhuNaksha GIS specifications."
+            )
+
+        district_str = clean_vcode[2:4]
+        taluka_str = clean_vcode[6:8]
+
+        gis_code = f"RVM{district_str}{taluka_str}{clean_vcode}"
+        logger.info(f"Constructed verified BhuNaksha GIS code: {gis_code}")
         return gis_code
 
     async def get_survey_numbers(self, gis_code: str) -> List[Survey]:
         cache_key = f"mh_surveys_{gis_code}"
         cached = self.cache.get(cache_key)
         if cached:
+            logger.info(f"Cache hit for mh_surveys_{gis_code}")
             return cached
 
-        raw_surveys = [
-            Survey(
-                survey_id=f"{gis_code}-S142",
-                survey_number="142",
-                subdivision_number="3/A",
-                village_code=gis_code,
-                area_sq_meters=4500.0,
-            ),
-            Survey(
-                survey_id=f"{gis_code}-S88",
-                survey_number="88",
-                subdivision_number="2/B",
-                village_code=gis_code,
-                area_sq_meters=12400.0,
-            ),
-            Survey(
-                survey_id=f"{gis_code}-S145",
-                survey_number="145",
-                subdivision_number="1",
-                village_code=gis_code,
-                area_sq_meters=8200.5,
-            ),
-            Survey(
-                survey_id=f"{gis_code}-S142-DUP",
-                survey_number="142",
-                subdivision_number="3/A",
-                village_code=gis_code,
-                area_sq_meters=4500.0,
-            ),
-        ]
+        url = f"{self.REST_BASE_URL}/VillageMapService/kidelistFromGisCodeMH"
+        data = {
+            "state": "27",
+            "logedLevels": gis_code,
+        }
 
-        # Remove duplicates based on survey_number + subdivision_number
+        try:
+            response = await self.http_client.request("POST", url, data=data)
+            raw_json = response.json()
+        except Exception as exc:
+            logger.error(f"Failed to fetch live survey list for GIS code {gis_code}: {exc}")
+            raise ExternalServiceException(detail=f"Survey numbers API request failed: {str(exc)}")
+
+        survey_numbers_raw = []
+        if isinstance(raw_json, list):
+            for item in raw_json:
+                if isinstance(item, str):
+                    survey_numbers_raw.append(item)
+                elif isinstance(item, dict):
+                    val = item.get("survey_no") or item.get("plotno") or item.get("value") or item.get("code")
+                    if val:
+                        survey_numbers_raw.append(str(val))
+
+        # Deduplicate while constructing Survey models
         seen = set()
         deduped: List[Survey] = []
-        for s in raw_surveys:
-            key = f"{s.survey_number}_{s.subdivision_number}"
-            if key not in seen:
-                seen.add(key)
-                deduped.append(s)
+        for s_num in survey_numbers_raw:
+            clean_num = str(s_num).strip()
+            if clean_num and clean_num not in seen:
+                seen.add(clean_num)
+                deduped.append(
+                    Survey(
+                        survey_id=f"{gis_code}-S{clean_num}",
+                        survey_number=clean_num,
+                        subdivision_number=None,
+                        village_code=gis_code,
+                        area_sq_meters=0.0,
+                    )
+                )
+
+        if not deduped:
+            logger.warning(f"No survey numbers returned for GIS code: {gis_code}")
 
         # Numerical sorting by survey number
         def _sort_key(srv: Survey) -> int:
@@ -184,53 +269,217 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
 
     async def get_plot_details(self, gis_code: str, survey_number: str) -> Property:
         cache_key = f"mh_plot_detail_{gis_code}_{survey_number}"
+
         cached = self.cache.get(cache_key)
         if cached:
+            logger.info(f"Cache hit for mh_plot_detail_{gis_code}_{survey_number}")
             return cached
 
-        # Simulated WKT MULTIPOLYGON returned by BhuNaksha REST services
-        sample_wkt = (
-            "MULTIPOLYGON (((73.8567 18.5204, 73.8575 18.5210, 73.8582 18.5201, 73.8570 18.5195, 73.8567 18.5204)))"
+        url = f"{self.REST_BASE_URL}/MapInfo/getPlotInfo"
+
+        data = {
+            "state": "27",
+            "giscode": gis_code,
+            "plotno": survey_number,
+            "srs": "4326",
+        }
+
+        try:
+            response = await self.http_client.request(
+                "POST",
+                url,
+                data=data,
+            )
+
+            raw_json = response.json()
+
+            
+
+        except Exception as exc:
+            logger.error(
+                f"Failed to fetch live plot info for {gis_code}/{survey_number}: {exc}"
+            )
+            raise ExternalServiceException(
+                detail=f"Plot info API request failed: {str(exc)}"
+            )
+
+        if not isinstance(raw_json, dict):
+            raise NotFoundException(
+                detail=f"Plot info for survey number {survey_number} not found."
+            )
+
+        wkt_geom = (
+            raw_json.get("the_geom")
+            or raw_json.get("wkt")
+            or raw_json.get("wkt_geometry")
         )
+
+        plot_id_val = raw_json.get("plotid") or raw_json.get("plot_id")
+
+        if not plot_id_val:
+            raise ValidationException(
+                detail=(
+                    f"Official plotid missing in BhuNaksha response "
+                    f"for survey number {survey_number} "
+                    f"(giscode: {gis_code})."
+                )
+            )
+
+        plot_id = str(plot_id_val)
+
+        area_val = float(
+            raw_json.get("area")
+            or raw_json.get("area_sq_meters")
+            or 0.0
+        )
+
+        # ==========================================================
+        # OWNER PARSING
+        # ==========================================================
+
+        owners_raw = raw_json.get("owners")
+
+        if owners_raw:
+            logger.info("Parsing owners from JSON owners field.")
+            owners_data = OwnerParser.parse_owners(owners_raw)
+        else:
+            logger.info("Parsing owners from INFO string.")
+            owners_data = OwnerParser.parse_owners(
+                raw_json.get("info", "")
+            )
+
+        logger.info("=" * 80)
+        logger.info("PARSED OWNERS")
+        logger.info(owners_data)
+        logger.info("=" * 80)
 
         raw_payload = {
             "property_id": f"PROP-{gis_code}-{survey_number}",
-            "survey_number": survey_number,
-            "area_sq_meters": 4500.0,
-            "pot_kharaba_sq_meters": 150.0,
-            "plot_id": f"PLOT-{survey_number}",
+            "survey_number": str(raw_json.get("plotno") or survey_number),
+            "area_sq_meters": area_val,
+            "pot_kharaba_sq_meters": float(
+                raw_json.get("pot_kharaba_sq_meters") or 0.0
+            ),
+            "plot_id": plot_id,
             "gis_code": gis_code,
-            "wkt": sample_wkt,
-            "owners": [
-                {
-                    "name": "Rajesh Suresh Patil",
-                    "khata_no": "KH-4902",
-                    "share_area": 2700.0,
-                    "percentage": 60.0,
-                },
-                {
-                    "name": "Sanjay Suresh Patil",
-                    "khata_no": "KH-4902",
-                    "share_area": 1800.0,
-                    "percentage": 40.0,
-                },
-            ],
+            "wkt": wkt_geom,
+            "owners": owners_data,
         }
 
         property_obj = PropertyParser.parse_raw_property(raw_payload)
-        self.cache.set(cache_key, property_obj, ttl_seconds=settings.CACHE_DEFAULT_TTL_SECONDS)
+
+        self.cache.set(
+            cache_key,
+            property_obj,
+            ttl_seconds=settings.CACHE_DEFAULT_TTL_SECONDS,
+        )
+
         return property_obj
+
+    # async def get_plot_details(self, gis_code: str, survey_number: str) -> Property:
+    #     cache_key = f"mh_plot_detail_{gis_code}_{survey_number}"
+    #     cached = self.cache.get(cache_key)
+    #     if cached:
+    #         logger.info(f"Cache hit for mh_plot_detail_{gis_code}_{survey_number}")
+    #         return cached
+
+    #     url = f"{self.REST_BASE_URL}/MapInfo/getPlotInfo"
+    #     data = {
+    #         "state": "27",
+    #         "giscode": gis_code,
+    #         "plotno": survey_number,
+    #         "srs": "4326",
+    #     }
+
+    #     try:
+    #         response = await self.http_client.request("POST", url, data=data)
+    #         raw_json = response.json()
+    #     except Exception as exc:
+    #         logger.error(f"Failed to fetch live plot info for {gis_code}/{survey_number}: {exc}")
+    #         raise ExternalServiceException(detail=f"Plot info API request failed: {str(exc)}")
+
+    #     if not isinstance(raw_json, dict):
+    #         raise NotFoundException(detail=f"Plot info for survey number {survey_number} not found.")
+
+    #     wkt_geom = raw_json.get("the_geom") or raw_json.get("wkt") or raw_json.get("wkt_geometry")
+
+    #     # Official plotid requirement: NEVER fabricate plot ID
+    #     plot_id_val = raw_json.get("plotid") or raw_json.get("plot_id")
+    #     if not plot_id_val:
+    #         raise ValidationException(
+    #             detail=f"Official plotid missing in BhuNaksha response for survey number {survey_number} (giscode: {gis_code})."
+    #         )
+    #     plot_id = str(plot_id_val)
+
+    #     area_val = float(raw_json.get("area") or raw_json.get("area_sq_meters") or 0.0)
+
+    #     # Parse multi-owner info string or json array
+    #     owners_data = raw_json.get("owners") 
+        
+    #     if owners_data:
+    #         owners_data = OwnerParser.parse_owners(owners_data)
+    #     else:
+    #         owners_data = OwnerParser.parse_owners(
+    #             raw_json.get("info", "")
+    #         )
+
+    #     raw_payload = {
+    #         "property_id": f"PROP-{gis_code}-{survey_number}",
+    #         "survey_number": str(raw_json.get("plotno") or survey_number),
+    #         "area_sq_meters": area_val,
+    #         "pot_kharaba_sq_meters": float(raw_json.get("pot_kharaba_sq_meters") or 0.0),
+    #         "plot_id": plot_id,
+    #         "gis_code": gis_code,
+    #         "wkt": wkt_geom,
+    #         "owners": owners_data,
+    #     }
+
+    #     property_obj = PropertyParser.parse_raw_property(raw_payload)
+    #     self.cache.set(cache_key, property_obj, ttl_seconds=settings.CACHE_DEFAULT_TTL_SECONDS)
+    #     return property_obj
 
     async def get_plot_extent(
         self, gis_code: str, survey_number: str
     ) -> PlotExtent:
+        """
+        Retrieves GIS extent bounds for a plot.
+        Calls get_plot_details() to obtain official BhuNaksha `plotid`.
+        Passes `plotid` to /MapInfo/getExtentGeoref as required by the REST API.
+        Never fabricates plot IDs or coordinate fallbacks.
+        """
         property_obj = await self.get_plot_details(gis_code, survey_number)
+        plot_id = property_obj.plot_id
+
+        url = f"{self.REST_BASE_URL}/MapInfo/getExtentGeoref"
+        data = {
+            "state": "27",
+            "giscode": gis_code,
+            "plotid": plot_id,
+            "srs": "4326",
+        }
+
+        try:
+            response = await self.http_client.request("POST", url, data=data)
+            raw_json = response.json()
+
+            if isinstance(raw_json, dict):
+                min_lat = float(raw_json.get("minlat") or raw_json.get("ymin") or raw_json.get("min_latitude") or 0.0)
+                min_lng = float(raw_json.get("minlng") or raw_json.get("xmin") or raw_json.get("min_longitude") or 0.0)
+                max_lat = float(raw_json.get("maxlat") or raw_json.get("ymax") or raw_json.get("max_latitude") or 0.0)
+                max_lng = float(raw_json.get("maxlng") or raw_json.get("xmax") or raw_json.get("max_longitude") or 0.0)
+
+                if min_lat != 0.0 or min_lng != 0.0:
+                    return PlotExtent(
+                        min_latitude=min_lat,
+                        min_longitude=min_lng,
+                        max_latitude=max_lat,
+                        max_longitude=max_lng,
+                    )
+        except Exception as exc:
+            logger.warning(f"Live getExtentGeoref request for plotid {plot_id} encountered error: {exc}")
+
+        # Fallback to extent calculated directly from plot's WKT geometry
         if property_obj.extent:
             return property_obj.extent
 
-        return PlotExtent(
-            min_latitude=18.5195,
-            min_longitude=73.8567,
-            max_latitude=18.5210,
-            max_longitude=73.8582,
-        )
+        raise NotFoundException(detail=f"Could not retrieve GIS extent bounds for survey {survey_number} (plotid: {plot_id}).")

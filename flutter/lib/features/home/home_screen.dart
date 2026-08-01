@@ -39,7 +39,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final locationRepo = ref.read(locationRepositoryProvider);
     final surveyRepo = ref.read(surveyRepositoryProvider);
 
-    // Fetch Current Location
+    // Fetch Current GPS & Backend Location
     final locResult = await locationRepo.getCurrentLocation();
     if (locResult is Success<LocationModel>) {
       _location = locResult.data;
@@ -131,8 +131,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Current Location Card
-              LocationCard(location: _location, isLoading: _isLoading),
+              // Current Location Card - Tapping opens MapScreen centered on GPS location
+              LocationCard(
+                location: _location,
+                isLoading: _isLoading,
+                onTap: () {
+                  context.push(
+                    Routes.map,
+                    extra: {
+                      'latitude': _location?.latitude,
+                      'longitude': _location?.longitude,
+                    },
+                  );
+                },
+              ),
               const SizedBox(height: 20),
 
               // Quick Actions

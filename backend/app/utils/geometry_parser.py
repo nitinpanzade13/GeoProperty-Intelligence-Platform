@@ -1,91 +1,119 @@
 import re
-from typing import List, Tuple
+from typing import List
+
+from pyproj import Transformer
+
 from app.models.domain_models import Point2D, PlotExtent
 
 
 class GeometryParser:
     """
-    WKT Geometry Parser for GIS land record shapes.
-    Converts WKT POLYGON and MULTIPOLYGON representations into strongly typed
-    coordinate lists List[List[Point2D]] and calculates geographical extents.
-    Never exposes raw WKT strings outside the provider layer.
+    Parses Bhunaksha WKT geometries.
+
+    Bhunaksha returns WKT in a projected CRS (meters), not WGS84.
+
+    This parser converts every coordinate to EPSG:4326 so Flutter/OpenStreetMap
+    receives valid latitude/longitude coordinates.
     """
+
+    # IMPORTANT:
+    # Replace EPSG:32643 if your Bhunaksha installation uses another CRS.
+    # Maharashtra Bhunaksha commonly uses UTM Zone 43N.
+    _transformer = Transformer.from_crs(
+        "EPSG:32643",
+        "EPSG:4326",
+        always_xy=True,
+    )
 
     @staticmethod
     def parse_wkt_to_coordinates(wkt_string: str) -> List[List[Point2D]]:
-        if not wkt_string or not isinstance(wkt_string, str):
+        if not wkt_string:
             return []
 
-        wkt_clean = wkt_string.strip().upper()
         polygons: List[List[Point2D]] = []
 
-        if wkt_clean.startswith("MULTIPOLYGON"):
-            # Extract content inside outer MULTIPOLYGON parentheses
-            polygon_matches = re.findall(r"\(\s*\(\s*([^()]+)\s*\)\s*\)", wkt_clean)
-            if not polygon_matches:
-                # Fallback regex for nested ring structures
-                polygon_matches = re.findall(r"\(([^()]+)\)", wkt_clean)
+        wkt = wkt_string.strip()
 
-            for poly_str in polygon_matches:
-                pts = GeometryParser._parse_point_sequence(poly_str)
-                if pts:
-                  polygons.append(pts)
+        if wkt.upper().startswith("MULTIPOLYGON"):
 
-        elif wkt_clean.startswith("POLYGON"):
-            poly_match = re.search(r"\(\s*\(\s*([^()]+)\s*\)\s*\)", wkt_clean)
-            if not poly_match:
-                poly_match = re.search(r"\(([^()]+)\)", wkt_clean)
+            matches = re.findall(
+                r"\(\(\((.*?)\)\)\)",
+                wkt,
+                flags=re.DOTALL,
+            )
 
-            if poly_match:
-                pts = GeometryParser._parse_point_sequence(poly_match.group(1))
+            for match in matches:
+                pts = GeometryParser._parse_point_sequence(match)
                 if pts:
                     polygons.append(pts)
 
-        else:
-            # Fallback for plain coordinate pairs "lng lat, lng lat"
-            pts = GeometryParser._parse_point_sequence(wkt_clean)
-            if pts:
-                polygons.append(pts)
+        elif wkt.upper().startswith("POLYGON"):
+
+            match = re.search(
+                r"\(\((.*?)\)\)",
+                wkt,
+                flags=re.DOTALL,
+            )
+
+            if match:
+                pts = GeometryParser._parse_point_sequence(match.group(1))
+                if pts:
+                    polygons.append(pts)
 
         return polygons
 
     @staticmethod
-    def _parse_point_sequence(coord_str: str) -> List[Point2D]:
-        points: List[Point2D] = []
-        pairs = coord_str.split(",")
+    def _parse_point_sequence(coord_string: str) -> List[Point2D]:
 
-        for pair in pairs:
-            clean_pair = pair.strip()
-            if not clean_pair:
+        points: List[Point2D] = []
+
+        for pair in coord_string.split(","):
+
+            pair = pair.strip()
+
+            if not pair:
                 continue
-            parts = clean_pair.split()
-            if len(parts) >= 2:
-                try:
-                    # In GIS WKT standards, order is typically (longitude, latitude)
-                    lng = float(parts[0])
-                    lat = float(parts[1])
-                    points.append(Point2D(latitude=lat, longitude=lng))
-                except ValueError:
-                    continue
+
+            values = pair.split()
+
+            if len(values) < 2:
+                continue
+
+            try:
+
+                x = float(values[0])
+                y = float(values[1])
+
+                lon, lat = GeometryParser._transformer.transform(x, y)
+
+                points.append(
+                    Point2D(
+                        latitude=lat,
+                        longitude=lon,
+                    )
+                )
+
+            except Exception:
+                continue
+
         return points
 
     @staticmethod
     def calculate_extent(polygons: List[List[Point2D]]) -> PlotExtent:
-        if not polygons or not polygons[0]:
+
+        if not polygons:
             return PlotExtent(
-                min_latitude=18.5195,
-                min_longitude=73.8567,
-                max_latitude=18.5210,
-                max_longitude=73.8582,
+                min_latitude=0,
+                min_longitude=0,
+                max_latitude=0,
+                max_longitude=0,
             )
 
-        all_points = [pt for poly in polygons for pt in poly]
-        lats = [pt.latitude for pt in all_points]
-        lngs = [pt.longitude for pt in all_points]
+        all_points = [p for poly in polygons for p in poly]
 
         return PlotExtent(
-            min_latitude=min(lats),
-            min_longitude=min(lngs),
-            max_latitude=max(lats),
-            max_longitude=max(lngs),
+            min_latitude=min(p.latitude for p in all_points),
+            min_longitude=min(p.longitude for p in all_points),
+            max_latitude=max(p.latitude for p in all_points),
+            max_longitude=max(p.longitude for p in all_points),
         )

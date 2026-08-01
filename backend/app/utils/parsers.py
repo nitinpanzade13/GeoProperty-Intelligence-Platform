@@ -1,55 +1,96 @@
 from typing import Dict, Any, List
-from app.models.domain_models import Property, Owner, Polygon, Point2D, PlotExtent
+
+from app.models.domain_models import (
+    Property,
+    Polygon,
+    Point2D,
+    Owner,
+)
+
 from app.utils.geometry_parser import GeometryParser
 from app.utils.owner_parser import OwnerParser
 
 
 class PropertyParser:
+
     @staticmethod
     def parse_raw_property(raw_data: Dict[str, Any]) -> Property:
-        """
-        Parses raw GIS/land record JSON response into a clean, strongly typed Property domain model.
-        Integrates GeometryParser for WKT geometry parsing and OwnerParser for multi-owner parsing.
-        """
-        # Parse Owners
+
         owners_raw = raw_data.get("owners", [])
-        owners_list = OwnerParser.parse_owners(owners_raw)
 
-        # Parse Geometry (WKT or coordinate array)
-        wkt_str = raw_data.get("wkt") or raw_data.get("wkt_geometry")
-        polygons_list: List[List[Point2D]] = []
+        # Already parsed in maharashtra_provider.py
+        if owners_raw and isinstance(owners_raw[0], Owner):
+            owners_list = owners_raw
+        else:
+            owners_list = OwnerParser.parse_owners(owners_raw)
 
-        if wkt_str:
-            polygons_list = GeometryParser.parse_wkt_to_coordinates(wkt_str)
-        elif "polygon" in raw_data and "points" in raw_data["polygon"]:
-            pts_raw = raw_data["polygon"]["points"]
-            pts = [
-                Point2D(latitude=float(p["lat"]), longitude=float(p["lng"]))
-                for p in pts_raw
-                if "lat" in p and "lng" in p
-            ]
-            polygons_list = [pts]
+        polygons: List[List[Point2D]] = []
 
-        primary_points = polygons_list[0] if polygons_list else []
-        area_val = float(raw_data.get("area_sq_meters") or 4500.0)
+        wkt = raw_data.get("wkt") or raw_data.get("wkt_geometry")
 
-        polygon_obj = Polygon(
-            polygon_id=str(raw_data.get("polygon_id") or f"POLY-{raw_data.get('survey_number', '142')}"),
-            points=primary_points,
-            area_sq_meters=area_val,
+        if wkt:
+            polygons = GeometryParser.parse_wkt_to_coordinates(wkt)
+
+        elif "polygon" in raw_data:
+
+            pts = raw_data["polygon"].get("points", [])
+
+            polygons = [[
+                Point2D(
+                    latitude=float(p["lat"]),
+                    longitude=float(p["lng"]),
+                )
+                for p in pts
+            ]]
+
+        polygon = Polygon(
+            polygon_id=str(
+                raw_data.get("polygon_id")
+                or raw_data["plot_id"]
+            ),
+            points=polygons[0] if polygons else [],
+            area_sq_meters=float(raw_data["area_sq_meters"]),
         )
 
-        # Calculate Extent
-        extent_obj = GeometryParser.calculate_extent(polygons_list)
+        extent = GeometryParser.calculate_extent(polygons)
+
+        plot_id = raw_data.get("plot_id")
+
+        if not plot_id:
+            raise ValueError("Missing plot_id")
+
+        gis_code = raw_data.get("gis_code")
+
+        if not gis_code:
+            raise ValueError("Missing GIS code")
 
         return Property(
-            property_id=str(raw_data.get("property_id") or raw_data.get("plot_id") or "PROP-001"),
-            survey_number=str(raw_data.get("survey_number") or "142"),
-            area_sq_meters=area_val,
-            pot_kharaba_sq_meters=float(raw_data.get("pot_kharaba_sq_meters") or 0.0),
-            plot_id=str(raw_data.get("plot_id") or f"PLOT-{raw_data.get('survey_number', '142')}"),
-            gis_code=str(raw_data.get("gis_code") or "MH-2701-270101-52001"),
+
+            property_id=str(
+                raw_data.get("property_id")
+                or plot_id
+            ),
+
+            survey_number=str(raw_data["survey_number"]),
+
+            area_sq_meters=float(
+                raw_data["area_sq_meters"]
+            ),
+
+            pot_kharaba_sq_meters=float(
+                raw_data.get(
+                    "pot_kharaba_sq_meters",
+                    0.0,
+                )
+            ),
+
+            plot_id=str(plot_id),
+
+            gis_code=str(gis_code),
+
             owners=owners_list,
-            polygon=polygon_obj,
-            extent=extent_obj,
+
+            polygon=polygon,
+
+            extent=extent,
         )

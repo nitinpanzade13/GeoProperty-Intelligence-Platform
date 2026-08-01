@@ -12,8 +12,17 @@ import 'widgets/map_controls.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   final String? initialSurveyNumber;
+  final String? initialGisCode;
+  final double? initialLatitude;
+  final double? initialLongitude;
 
-  const MapScreen({super.key, this.initialSurveyNumber});
+  const MapScreen({
+    super.key,
+    this.initialSurveyNumber,
+    this.initialGisCode,
+    this.initialLatitude,
+    this.initialLongitude,
+  });
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -25,19 +34,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   LatLng _userLocation = const LatLng(18.5204, 73.8567);
   List<Marker> _markers = [];
   List<Polygon> _polygons = [];
+  List<Polygon> _highlightedPolygons = [];
 
   bool _isLoadingProperty = false;
   PropertyModel? _loadedProperty;
+  String? _gisCode;
 
   @override
   void initState() {
     super.initState();
+    if (widget.initialLatitude != null && widget.initialLongitude != null) {
+      _userLocation = LatLng(widget.initialLatitude!, widget.initialLongitude!);
+    }
+    _gisCode = widget.initialGisCode;
     _initUserLocationAndProperty();
   }
 
   Future<void> _initUserLocationAndProperty() async {
     _updateUserLocationMarker(_userLocation);
-    await _locateMe(moveCamera: false);
+    if (widget.initialLatitude == null || widget.initialLongitude == null) {
+      await _locateMe(moveCamera: false);
+    } else {
+      _mapController.move(_userLocation, 16.0);
+    }
     await _fetchPropertyDetails();
   }
 
@@ -50,21 +69,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   void _rebuildMarkers() {
     final List<Marker> newMarkers = [
-      // Current GPS Location Marker
+      // TASK 1 & 4: Blue Current Location GPS Marker
       Marker(
         point: _userLocation,
-        width: 50,
-        height: 50,
+        width: 52,
+        height: 52,
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.secondary.withValues(alpha: 0.25),
+            color: Colors.blue.withValues(alpha: 0.25),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
+            border: Border.all(color: Colors.white, width: 2.5),
+            boxShadow: const [
+              BoxShadow(color: Colors.blueAccent, blurRadius: 10, spreadRadius: 2),
+            ],
           ),
           child: const Center(
             child: Icon(
               Icons.my_location_rounded,
-              color: AppColors.secondary,
+              color: Colors.blue,
               size: 26,
             ),
           ),
@@ -137,12 +159,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     try {
       final propertyRepo = ref.read(propertyRepositoryProvider);
       final sNum = widget.initialSurveyNumber ?? '142';
-      final result = await propertyRepo.getPropertyDetails('SURV-$sNum',
-          surveyNumber: sNum);
+      final gis = widget.initialGisCode ?? 'RVM0501270500010046290000';
+
+      final result = await propertyRepo.getPropertyDetails(
+        'SURV-$sNum',
+        gisCode: gis,
+        surveyNumber: sNum,
+      );
 
       if (result is Success<PropertyModel>) {
         final prop = result.data;
         _loadedProperty = prop;
+        _gisCode = gis;
 
         if (prop.boundaryPoints.isNotEmpty) {
           final List<LatLng> surveyPoints = prop.boundaryPoints
@@ -150,17 +178,30 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               .toList();
 
           setState(() {
+            // Task 4 Layer 2: Base Property Polygon
             _polygons = [
               Polygon(
                 points: surveyPoints,
-                borderStrokeWidth: 3.0,
-                borderColor: AppColors.secondary,
-                color: AppColors.secondary.withValues(alpha: 0.35),
+                borderStrokeWidth: 2.0,
+                borderColor: AppColors.secondary.withValues(alpha: 0.6),
+                color: AppColors.secondary.withValues(alpha: 0.2),
               ),
             ];
+
+            // Task 4 Layer 3: Selected Polygon Highlight (Vibrant gold/cyan outline)
+            _highlightedPolygons = [
+              Polygon(
+                points: surveyPoints,
+                borderStrokeWidth: 4.0,
+                borderColor: Colors.amberAccent,
+                color: Colors.amberAccent.withValues(alpha: 0.35),
+              ),
+            ];
+
             _rebuildMarkers();
           });
 
+          // Task 3: Automatically zoom to selected property while keeping surrounding village visible
           _autoFitPolygon(surveyPoints);
         }
       }
@@ -181,7 +222,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _mapController.fitCamera(
           CameraFit.bounds(
             bounds: bounds,
-            padding: const EdgeInsets.all(50.0),
+            padding: const EdgeInsets.all(60.0),
           ),
         );
       } catch (_) {
@@ -209,7 +250,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // FlutterMap OpenStreetMap View
+          // TASK 4 Layer Hierarchy:
+          // 1. Official BhuNaksha WMS Tile Layer (+ Base OSM)
+          // 2. Property Polygons
+          // 3. Selected Polygon Highlight
+          // 4. Current Location Marker
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -217,16 +262,38 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               initialZoom: 16.0,
               minZoom: 4.0,
               maxZoom: 19.0,
-              interactionOptions: InteractionOptions(
+              interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all,
               ),
             ),
             children: [
+              // 1a. OpenStreetMap Base Tile Layer
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.geopropertyintelligence',
               ),
+
+              // 1b. Official Maharashtra BhuNaksha WMS Tile Layer
+              if (_gisCode != null && _gisCode!.isNotEmpty)
+                TileLayer(
+                  wmsOptions: WMSTileLayerOptions(
+                    baseUrl: 'https://mahabhunakasha.mahabhumi.gov.in/WMS?',
+                    layers: const ['VILLAGE_MAP'],
+                    otherParameters: {
+                      'gis_code': _gisCode!,
+                      'TRANSPARENT': 'true',
+                    },
+                  ),
+                ),
+
+              // 2. Property Polygons Layer
               PolygonLayer(polygons: _polygons),
+
+              // 3. Selected Polygon Highlight Layer (Rendered on top with vibrant amber highlight)
+              if (_highlightedPolygons.isNotEmpty)
+                PolygonLayer(polygons: _highlightedPolygons),
+
+              // 4. Current Location & Survey Markers Layer (Blue GPS Marker)
               MarkerLayer(markers: _markers),
             ],
           ),
@@ -257,8 +324,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ),
                         Text(
                           _isLoadingProperty
-                              ? 'Fetching OpenStreetMap Boundary Extents...'
-                              : 'Layer: OpenStreetMap + Survey Polygon',
+                              ? 'Fetching BhuNaksha WMS & Polygon Extents...'
+                              : 'WMS: ${_gisCode ?? "Village Map"}',
                           style: const TextStyle(
                               fontSize: 11, color: AppColors.secondary),
                         ),

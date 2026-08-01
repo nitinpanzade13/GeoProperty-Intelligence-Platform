@@ -162,7 +162,13 @@ class PropertySearchDetailsScreen extends StatelessWidget {
               text: 'View on Map',
               icon: Icons.map_rounded,
               onPressed: () {
-                context.push(Routes.map, extra: surveyNumber);
+                context.push(
+                  Routes.map,
+                  extra: {
+                    'surveyNumber': surveyNumber,
+                    'gisCode': gisCode,
+                  },
+                );
               },
             ),
           ],

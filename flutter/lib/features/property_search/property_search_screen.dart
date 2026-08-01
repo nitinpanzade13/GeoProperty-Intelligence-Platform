@@ -216,7 +216,9 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
   void _onVillageChanged(String? code) {
     if (code == null ||
         _selectedDistrictCode == null ||
-        _selectedTalukaCode == null) return;
+        _selectedTalukaCode == null) {
+      return;
+    }
     final selectedItem = _villageItems.firstWhere((item) => item.value == code);
     setState(() {
       _selectedVillageCode = code;
@@ -237,6 +239,20 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
     });
   }
 
+  void _openVillageMapImmediate() {
+    if (_selectedVillageCode == null) return;
+    final gisCode = _resolvedGisCode ?? 'RVM0501270500010046290000';
+    context.push(
+      Routes.map,
+      extra: {
+        'gisCode': gisCode,
+        'villageName': _selectedVillageName,
+        'district': _selectedDistrictName,
+        'taluka': _selectedTalukaName,
+      },
+    );
+  }
+
   Future<void> _onViewProperty() async {
     final surveyNum =
         _selectedSurveyNumber ?? _surveyTextController.text.trim();
@@ -250,7 +266,7 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
 
     setState(() => _isSubmitting = true);
     final propertyRepo = ref.read(propertyRepositoryProvider);
-    final gisCode = _resolvedGisCode ?? 'MH-2701-270101-52001';
+    final gisCode = _resolvedGisCode ?? 'RVM0501270500010046290000';
 
     final result = await propertyRepo.getPropertyDetails('SURV-$surveyNum',
         gisCode: gisCode, surveyNumber: surveyNum);
@@ -371,6 +387,30 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
                     hintText: 'Select Village (e.g. Shivajinagar)',
                     onChanged: _onVillageChanged,
                   ),
+
+                  // TASK 2: Immediate Village WMS Map Button as soon as Village is selected
+                  if (_selectedVillageCode != null) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _openVillageMapImmediate,
+                      icon: const Icon(Icons.map_rounded, color: AppColors.secondary),
+                      label: Text(
+                        'View ${_selectedVillageName ?? "Village"} Map (WMS)',
+                        style: const TextStyle(
+                          color: AppColors.secondary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.secondary, width: 1.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 16),
 
                   // 4. Survey Number Dropdown or TextField
