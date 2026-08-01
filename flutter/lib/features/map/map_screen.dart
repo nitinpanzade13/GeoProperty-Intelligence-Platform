@@ -69,7 +69,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   void _rebuildMarkers() {
     final List<Marker> newMarkers = [
-      // TASK 1 & 4: Blue Current Location GPS Marker
+      // Current Location GPS Marker (Blue Dot)
       Marker(
         point: _userLocation,
         width: 52,
@@ -80,7 +80,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2.5),
             boxShadow: const [
-              BoxShadow(color: Colors.blueAccent, blurRadius: 10, spreadRadius: 2),
+              BoxShadow(
+                  color: Colors.blueAccent, blurRadius: 10, spreadRadius: 2),
             ],
           ),
           child: const Center(
@@ -178,7 +179,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               .toList();
 
           setState(() {
-            // Task 4 Layer 2: Base Property Polygon
+            // Layer 2: Base Property Polygon
             _polygons = [
               Polygon(
                 points: surveyPoints,
@@ -188,7 +189,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ];
 
-            // Task 4 Layer 3: Selected Polygon Highlight (Vibrant gold/cyan outline)
+            // Layer 3: Selected Polygon Highlight (Vibrant Amber Outline on top of WMS)
             _highlightedPolygons = [
               Polygon(
                 points: surveyPoints,
@@ -201,7 +202,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             _rebuildMarkers();
           });
 
-          // Task 3: Automatically zoom to selected property while keeping surrounding village visible
+          // Automatically fit camera zoom to selected property
           _autoFitPolygon(surveyPoints);
         }
       }
@@ -247,53 +248,66 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Resolve dynamic FastAPI backend base URL for WMS proxy
+    final apiClient = ref.read(apiClientProvider);
+    final String apiBaseUrl = apiClient.config.apiBaseUrl;
+    final String wmsProxyBaseUrl = '$apiBaseUrl/map/wms?';
+
     return Scaffold(
       body: Stack(
         children: [
-          // TASK 4 Layer Hierarchy:
-          // 1. Official BhuNaksha WMS Tile Layer (+ Base OSM)
-          // 2. Property Polygons
-          // 3. Selected Polygon Highlight
-          // 4. Current Location Marker
+          // FlutterMap Layer Ordering:
+          // 1. Base OSM Tile Layer + Official BhuNaksha WMS Backend Proxy Layer
+          // 2. Property Polygons Layer
+          // 3. Selected Polygon Highlight Layer (Amber Accent)
+          // 4. Current Location Marker Layer (Blue GPS Pin)
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
               initialCenter: _userLocation,
               initialZoom: 16.0,
-              minZoom: 4.0,
-              maxZoom: 19.0,
+              // minZoom: 4.0,
+              // maxZoom: 19.0,
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all,
               ),
             ),
             children: [
-              // 1a. OpenStreetMap Base Tile Layer
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.geopropertyintelligence',
-              ),
+              // 1a. Base OpenStreetMap Layer
+              // TileLayer(
+              //   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              //   userAgentPackageName: 'com.example.geopropertyintelligence',
+              // ),
 
-              // 1b. Official Maharashtra BhuNaksha WMS Tile Layer
+              // 1b. Official BhuNaksha WMS Layer via FastAPI Backend Proxy
               if (_gisCode != null && _gisCode!.isNotEmpty)
                 TileLayer(
                   wmsOptions: WMSTileLayerOptions(
-                    baseUrl: 'https://mahabhunakasha.mahabhumi.gov.in/WMS?',
-                    layers: const ['VILLAGE_MAP'],
+                    baseUrl: wmsProxyBaseUrl,
+                    version: '1.3.0',
+                    crs: const Epsg3857(),
+                    layers: const [
+                      'VILLAGE_MAP',
+                    ],
+                    styles: const [
+                      'VILLAGE_MAP',
+                    ],
+                    format: 'image/png',
+                    transparent: true,
                     otherParameters: {
                       'gis_code': _gisCode!,
-                      'TRANSPARENT': 'true',
                     },
                   ),
                 ),
 
-              // 2. Property Polygons Layer
+              // 2. Base Property Polygons Layer
               PolygonLayer(polygons: _polygons),
 
-              // 3. Selected Polygon Highlight Layer (Rendered on top with vibrant amber highlight)
+              // 3. Selected Property Polygon Highlight Layer
               if (_highlightedPolygons.isNotEmpty)
                 PolygonLayer(polygons: _highlightedPolygons),
 
-              // 4. Current Location & Survey Markers Layer (Blue GPS Marker)
+              // 4. Current Location & Survey Markers Layer
               MarkerLayer(markers: _markers),
             ],
           ),
@@ -324,8 +338,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ),
                         Text(
                           _isLoadingProperty
-                              ? 'Fetching BhuNaksha WMS & Polygon Extents...'
-                              : 'WMS: ${_gisCode ?? "Village Map"}',
+                              ? 'Fetching BhuNaksha WMS Proxy & Polygon Extents...'
+                              : 'Backend WMS Proxy: ${_gisCode ?? "Village Map"}',
                           style: const TextStyle(
                               fontSize: 11, color: AppColors.secondary),
                         ),
