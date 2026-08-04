@@ -41,7 +41,7 @@ class Settings(BaseSettings):
 
     # External Provider Configuration
     DEFAULT_STATE_PROVIDER: str = "MH"
-    MH_BHUNAKSHA_BASE_URL: str = "https://mahabhunaksha.mahabhumi.gov.in/bhunaksha/services"
+    MH_BHUNAKSHA_BASE_URL: str = "https://mahabhunakasha.mahabhumi.gov.in/bhunaksha/services"
 
     class Config:
         case_sensitive = True

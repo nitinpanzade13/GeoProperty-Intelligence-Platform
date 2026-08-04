@@ -11,6 +11,7 @@ import '../../core/widgets/custom_error_widget.dart';
 import '../../core/providers/service_providers.dart';
 import '../../core/routing/routes.dart';
 import '../../core/utils/result.dart';
+import '../../core/constants/defaults.dart';
 import 'widgets/expandable_owner_card.dart';
 
 class PropertyDetailScreen extends ConsumerStatefulWidget {
@@ -133,7 +134,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                             ),
                           ),
                           Text(
-                            'GIS Code: ${prop.surveyDetails.id.contains("MH-") ? prop.surveyDetails.id : "MH-2701-270101-52001"}',
+                            'GIS Code: ${prop.surveyDetails.id.contains("MH-") ? prop.surveyDetails.id : Defaults.legacyGisCode}',
                             style: const TextStyle(
                                 color: Colors.grey,
                                 fontSize: 11,
@@ -145,7 +146,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                       Text(prop.title, style: theme.textTheme.headlineMedium),
                       const SizedBox(height: 4),
                       Text(
-                        '${survey.village}, ${survey.taluka}, ${survey.district}, Maharashtra',
+                        '${survey.village}, ${survey.taluka}, ${survey.district}, ${Defaults.state}',
                         style: theme.textTheme.bodyMedium
                             ?.copyWith(color: Colors.grey),
                       ),
@@ -162,7 +163,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                     children: [
                       _buildInfoRow('Survey Number', survey.surveyNumber),
                       _buildInfoRow('Subdivision (Hissa)',
-                          survey.subdivisionNumber ?? '1'),
+                          survey.subdivisionNumber ?? Defaults.subdivisionNumber),
                       _buildInfoRow('Land Classification', survey.landType),
                       _buildInfoRow('District', survey.district),
                       _buildInfoRow('Taluka', survey.taluka),
@@ -254,8 +255,6 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                       extra: {
                         'surveyNumber': survey.surveyNumber,
                         'gisCode': _property!.gisCode,
-                        // 'latitude': _property!.boundaryPoints.first.latitude,
-                        // 'longitude': _property!.boundaryPoints.first.longitude,
                       },
                     );
                   },

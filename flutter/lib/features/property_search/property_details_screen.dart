@@ -6,6 +6,7 @@ import '../../core/models/property_model.dart';
 import '../../core/widgets/glass_card.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../core/routing/routes.dart';
+import '../../core/constants/defaults.dart';
 import '../property/widgets/expandable_owner_card.dart';
 
 class PropertySearchDetailsScreen extends StatelessWidget {
@@ -78,7 +79,7 @@ class PropertySearchDetailsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$village, $taluka, $district, Maharashtra',
+                    '$village, $taluka, $district, ${Defaults.state}',
                     style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
                   ),
                 ],
@@ -108,7 +109,7 @@ class PropertySearchDetailsScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _buildDetailRow('Survey Number', surveyNumber),
-                  _buildDetailRow('Subdivision (Hissa)', survey.subdivisionNumber ?? '1'),
+                  _buildDetailRow('Subdivision (Hissa)', survey.subdivisionNumber ?? Defaults.subdivisionNumber),
                   _buildDetailRow('Total Area (Sq. Meters)', '${survey.areaSqMeters} m²'),
                   _buildDetailRow('Total Area (Hectares)', '${property.totalAreaHectares} Ha'),
                   _buildDetailRow('Pot Kharaba (Uncultivable)', '150.0 m²'),

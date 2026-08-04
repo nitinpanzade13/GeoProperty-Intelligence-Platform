@@ -14,7 +14,6 @@ from app.database.base import Base
 from app.database.session import engine
 
 # Import all models here
-from app.db_models.village_cache import VillageCache
 # -------------------------------
 
 app = FastAPI(

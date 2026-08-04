@@ -3,6 +3,7 @@ import '../services/location_api_service.dart';
 import '../services/location_service.dart';
 import '../models/location_model.dart';
 import '../utils/result.dart';
+import '../constants/defaults.dart';
 
 abstract class ILocationRepository {
   Future<Result<LocationModel>> getCurrentLocation();
@@ -21,12 +22,12 @@ class LocationRepository implements ILocationRepository {
   Future<Result<LocationModel>> getCurrentLocation() async {
     try {
       final pos = await deviceLocationService.getCurrentPosition();
-      final double lat = pos?.latitude ?? 18.5204;
-      final double lng = pos?.longitude ?? 73.8567;
+      final double lat = pos?.latitude ?? Defaults.latitude;
+      final double lng = pos?.longitude ?? Defaults.longitude;
 
       String? villageName;
       String? districtName;
-      String? stateName = 'Maharashtra';
+      String? stateName = Defaults.state;
 
       try {
         final placemarks = await placemarkFromCoordinates(lat, lng);
@@ -39,7 +40,7 @@ class LocationRepository implements ILocationRepository {
 
           villageName = (subLoc != null && subLoc.isNotEmpty) ? subLoc : loc;
           districtName = (subAdmin != null && subAdmin.isNotEmpty) ? subAdmin : loc;
-          stateName = (admin != null && admin.isNotEmpty) ? admin : 'Maharashtra';
+          stateName = (admin != null && admin.isNotEmpty) ? admin : Defaults.state;
         }
       } catch (_) {}
 
@@ -49,10 +50,10 @@ class LocationRepository implements ILocationRepository {
         latitude: lat,
         longitude: lng,
         address: backendLoc.address,
-        district: districtName ?? backendLoc.district ?? 'Pune',
-        taluka: backendLoc.taluka ?? 'Haveli',
-        village: villageName ?? backendLoc.village ?? 'Shivajinagar',
-        state: stateName ?? backendLoc.state ?? 'Maharashtra',
+        district: districtName ?? backendLoc.district ?? Defaults.district,
+        taluka: backendLoc.taluka ?? Defaults.taluka,
+        village: villageName ?? backendLoc.village ?? Defaults.village,
+        state: stateName ?? backendLoc.state ?? Defaults.state,
         pincode: backendLoc.pincode,
       );
 
@@ -60,13 +61,13 @@ class LocationRepository implements ILocationRepository {
     } catch (e) {
       return Result.success(
         const LocationModel(
-          latitude: 18.5204,
-          longitude: 73.8567,
-          address: 'Shivajinagar, Pune, Maharashtra 411005',
-          district: 'Pune',
-          taluka: 'Haveli',
-          village: 'Shivajinagar',
-          state: 'Maharashtra',
+          latitude: Defaults.latitude,
+          longitude: Defaults.longitude,
+          address: Defaults.fallbackAddress,
+          district: Defaults.district,
+          taluka: Defaults.taluka,
+          village: Defaults.village,
+          state: Defaults.state,
         ),
       );
     }

@@ -4,6 +4,7 @@ import '../models/survey_model.dart';
 import '../models/location_model.dart';
 import '../models/owner_model.dart';
 import '../models/polygon_model.dart';
+import '../constants/defaults.dart';
 
 class PropertyApiService {
   final ApiClient apiClient;
@@ -30,7 +31,7 @@ class PropertyApiService {
             om['full_name'] as String? ??
             'Registered Owner',
         ownershipPercentage:
-            (om['ownership_percentage'] as num?)?.toDouble() ?? 100.0,
+            (om['ownership_percentage'] as num?)?.toDouble() ?? Defaults.fullOwnership,
         khataNumber: om['khata_number'] as String? ?? 'KH-101',
       );
     }).toList();
@@ -48,7 +49,7 @@ class PropertyApiService {
     }
 
     final double areaSqMeters =
-        (map['area_sq_meters'] as num?)?.toDouble() ?? 4500.0;
+        (map['area_sq_meters'] as num?)?.toDouble() ?? Defaults.defaultAreaSqMeters;
 
     return PropertyModel(
       propertyId: map['property_id'] as String? ?? 'PROP-101',
@@ -58,17 +59,17 @@ class PropertyApiService {
         id: map['property_id'] as String? ?? 'SURV-$surveyNumber',
         surveyNumber: surveyNumber,
         subdivisionNumber: '3/A',
-        district: 'Pune',
-        taluka: 'Haveli',
-        village: 'Shivajinagar',
+        district: Defaults.district,
+        taluka: Defaults.taluka,
+        village: Defaults.village,
         areaSqMeters: areaSqMeters,
         landType: 'Government Verified',
         location: const LocationModel(
-          latitude: 18.5204,
-          longitude: 73.8567,
-          village: 'Shivajinagar',
-          district: 'Pune',
-          taluka: 'Haveli',
+          latitude: Defaults.latitude,
+          longitude: Defaults.longitude,
+          village: Defaults.village,
+          district: Defaults.district,
+          taluka: Defaults.taluka,
         ),
       ),
       owners: owners,
@@ -76,7 +77,7 @@ class PropertyApiService {
           double.parse((areaSqMeters / 10000.0).toStringAsFixed(4)),
       boundaryPoints: polyPoints,
       valuationEstimateInr: areaSqMeters * 1850.0,
-      status: 'Verified',
+      status: Defaults.propertyStatus,
     );
   }
 

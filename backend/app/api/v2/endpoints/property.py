@@ -9,16 +9,17 @@ from app.utils.httpx_client import GISHttpClient, gis_http_client
 from app.utils.cache import MemoryCache, memory_cache
 from app.core.logging import logger
 from fastapi import HTTPException
+from app.core.defaults import DEFAULT_GIS_CODE, DEFAULT_SURVEY_NUMBER, BHUNAKSHA_WMS_BASE
 
 router = APIRouter()
 
-WMS_OFFICIAL_URL = "https://mahabhunakasha.mahabhumi.gov.in/WMS"
+WMS_OFFICIAL_URL = BHUNAKSHA_WMS_BASE
 
 
 @router.get("/property/details", response_model=APIResponse[PropertyDetailsResponse])
 async def get_property_details(
-    gis_code: str = Query("RVM0501270500010046290000", description="Unified Village GIS Code"),
-    survey_number: str = Query("142", description="Survey Number"),
+    gis_code: str = Query(DEFAULT_GIS_CODE, description="Unified Village GIS Code"),
+    survey_number: str = Query(DEFAULT_SURVEY_NUMBER, description="Survey Number"),
     property_service: PropertyService = Depends(get_property_service),
 ):
     """Retrieve complete property, multi-owner breakdown, area metrics, and polygon boundaries."""
@@ -30,8 +31,8 @@ async def get_property_details(
 
 @router.get("/property/extent", response_model=APIResponse[PropertyExtentResponse])
 async def get_property_extent(
-    gis_code: str = Query("RVM0501270500010046290000", description="Unified Village GIS Code"),
-    survey_number: str = Query("142", description="Survey Number"),
+    gis_code: str = Query(DEFAULT_GIS_CODE, description="Unified Village GIS Code"),
+    survey_number: str = Query(DEFAULT_SURVEY_NUMBER, description="Survey Number"),
     map_service: MapService = Depends(get_map_service),
 ):
     """Retrieve plot extent and bounding box coordinates for map centering."""

@@ -376,67 +376,7 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
 
         return property_obj
 
-    # async def get_plot_details(self, gis_code: str, survey_number: str) -> Property:
-    #     cache_key = f"mh_plot_detail_{gis_code}_{survey_number}"
-    #     cached = self.cache.get(cache_key)
-    #     if cached:
-    #         logger.info(f"Cache hit for mh_plot_detail_{gis_code}_{survey_number}")
-    #         return cached
 
-    #     url = f"{self.REST_BASE_URL}/MapInfo/getPlotInfo"
-    #     data = {
-    #         "state": "27",
-    #         "giscode": gis_code,
-    #         "plotno": survey_number,
-    #         "srs": "4326",
-    #     }
-
-    #     try:
-    #         response = await self.http_client.request("POST", url, data=data)
-    #         raw_json = response.json()
-    #     except Exception as exc:
-    #         logger.error(f"Failed to fetch live plot info for {gis_code}/{survey_number}: {exc}")
-    #         raise ExternalServiceException(detail=f"Plot info API request failed: {str(exc)}")
-
-    #     if not isinstance(raw_json, dict):
-    #         raise NotFoundException(detail=f"Plot info for survey number {survey_number} not found.")
-
-    #     wkt_geom = raw_json.get("the_geom") or raw_json.get("wkt") or raw_json.get("wkt_geometry")
-
-    #     # Official plotid requirement: NEVER fabricate plot ID
-    #     plot_id_val = raw_json.get("plotid") or raw_json.get("plot_id")
-    #     if not plot_id_val:
-    #         raise ValidationException(
-    #             detail=f"Official plotid missing in BhuNaksha response for survey number {survey_number} (giscode: {gis_code})."
-    #         )
-    #     plot_id = str(plot_id_val)
-
-    #     area_val = float(raw_json.get("area") or raw_json.get("area_sq_meters") or 0.0)
-
-    #     # Parse multi-owner info string or json array
-    #     owners_data = raw_json.get("owners") 
-        
-    #     if owners_data:
-    #         owners_data = OwnerParser.parse_owners(owners_data)
-    #     else:
-    #         owners_data = OwnerParser.parse_owners(
-    #             raw_json.get("info", "")
-    #         )
-
-    #     raw_payload = {
-    #         "property_id": f"PROP-{gis_code}-{survey_number}",
-    #         "survey_number": str(raw_json.get("plotno") or survey_number),
-    #         "area_sq_meters": area_val,
-    #         "pot_kharaba_sq_meters": float(raw_json.get("pot_kharaba_sq_meters") or 0.0),
-    #         "plot_id": plot_id,
-    #         "gis_code": gis_code,
-    #         "wkt": wkt_geom,
-    #         "owners": owners_data,
-    #     }
-
-    #     property_obj = PropertyParser.parse_raw_property(raw_payload)
-    #     self.cache.set(cache_key, property_obj, ttl_seconds=settings.CACHE_DEFAULT_TTL_SECONDS)
-    #     return property_obj
 
     async def get_plot_extent(
         self, gis_code: str, survey_number: str

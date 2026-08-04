@@ -9,6 +9,7 @@ import '../../core/widgets/glass_card.dart';
 import '../../core/models/property_model.dart';
 import '../../core/utils/result.dart';
 import '../../core/utils/geojson_parser.dart';
+import '../../core/constants/defaults.dart';
 import 'widgets/map_controls.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
@@ -32,7 +33,7 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen> {
   final MapController _mapController = MapController();
 
-  LatLng _userLocation = const LatLng(18.5204, 73.8567);
+  LatLng _userLocation = LatLng(Defaults.latitude, Defaults.longitude);
   List<Marker> _markers = [];
   List<Polygon> _polygons = [];
   List<Polygon> _villagePolygons = [];
@@ -186,11 +187,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     try {
       final propertyRepo = ref.read(propertyRepositoryProvider);
-      final sNum = widget.initialSurveyNumber ?? '142';
-      final gis = widget.initialGisCode ?? 'RVM0501270500010046290000';
+      final sNum = widget.initialSurveyNumber ?? Defaults.surveyNumber;
+      final gis = widget.initialGisCode ?? Defaults.gisCode;
 
       final result = await propertyRepo.getPropertyDetails(
-        'SURV-$sNum',
+        '${Defaults.surveyIdPrefix}$sNum',
         gisCode: gis,
         surveyNumber: sNum,
       );
@@ -305,8 +306,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             children: [
               // 1a. Base OpenStreetMap Layer
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.geopropertyintelligence',
+                urlTemplate: Defaults.osmTileUrl,
+                userAgentPackageName: Defaults.mapPackageName,
               ),
 
               // 1b. Official BhuNaksha WMS Layer via FastAPI Backend Proxy

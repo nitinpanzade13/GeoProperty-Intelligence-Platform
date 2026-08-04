@@ -1,6 +1,7 @@
 import 'api_client.dart';
 import '../models/survey_model.dart';
 import '../models/location_model.dart';
+import '../constants/defaults.dart';
 
 class SurveyApiService {
   final ApiClient apiClient;
@@ -19,17 +20,17 @@ class SurveyApiService {
         id: map['survey_id'] as String? ?? 'SURV-${map['survey_number']}',
         surveyNumber: map['survey_number'] as String? ?? '',
         subdivisionNumber: map['subdivision_number'] as String?,
-        district: 'Pune',
-        taluka: 'Haveli',
-        village: 'Shivajinagar',
-        areaSqMeters: (map['area_sq_meters'] as num?)?.toDouble() ?? 4500.0,
-        landType: 'Agricultural / Irrigated',
+        district: Defaults.district,
+        taluka: Defaults.taluka,
+        village: Defaults.village,
+        areaSqMeters: (map['area_sq_meters'] as num?)?.toDouble() ?? Defaults.defaultAreaSqMeters,
+        landType: Defaults.landType,
         location: const LocationModel(
-          latitude: 18.5204,
-          longitude: 73.8567,
-          village: 'Shivajinagar',
-          district: 'Pune',
-          taluka: 'Haveli',
+          latitude: Defaults.latitude,
+          longitude: Defaults.longitude,
+          village: Defaults.village,
+          district: Defaults.district,
+          taluka: Defaults.taluka,
         ),
       );
     }).toList();

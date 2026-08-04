@@ -1,17 +1,27 @@
 from app.schemas.location import LocationResponse
+from app.core.defaults import (
+    DEFAULT_LATITUDE,
+    DEFAULT_LONGITUDE,
+    DEFAULT_STATE,
+    DEFAULT_DISTRICT,
+    DEFAULT_TALUKA,
+    DEFAULT_VILLAGE,
+    DEFAULT_PINCODE,
+    DEFAULT_ADDRESS,
+)
 
 
 class LocationService:
     async def get_current_location(
-        self, latitude: float = 18.5204, longitude: float = 73.8567
+        self, latitude: float = DEFAULT_LATITUDE, longitude: float = DEFAULT_LONGITUDE
     ) -> LocationResponse:
         return LocationResponse(
             latitude=latitude,
             longitude=longitude,
-            address="Shivajinagar, Pune, Maharashtra 411005",
-            district="Pune",
-            taluka="Haveli",
-            village="Shivajinagar",
-            state="Maharashtra",
-            pincode="411005",
+            address=DEFAULT_ADDRESS,
+            district=DEFAULT_DISTRICT,
+            taluka=DEFAULT_TALUKA,
+            village=DEFAULT_VILLAGE,
+            state=DEFAULT_STATE,
+            pincode=DEFAULT_PINCODE,
         )

@@ -15,6 +15,7 @@ import '../../features/favorites/favorites_screen.dart';
 import '../../core/models/property_model.dart';
 import '../../core/models/survey_model.dart';
 import '../../core/models/location_model.dart';
+import '../../core/constants/defaults.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -39,7 +40,7 @@ class AppRouter {
       GoRoute(
         path: Routes.propertyDetail,
         builder: (context, state) {
-          final id = state.extra as String? ?? 'SURV-101';
+          final id = state.extra as String? ?? '${Defaults.surveyIdPrefix}101';
           return PropertyDetailScreen(propertyId: id);
         },
       ),
@@ -54,40 +55,40 @@ class AppRouter {
           if (extra != null && extra.containsKey('property')) {
             return PropertySearchDetailsScreen(
               property: extra['property'] as PropertyModel,
-              district: extra['district'] as String? ?? 'Pune',
-              taluka: extra['taluka'] as String? ?? 'Haveli',
-              village: extra['village'] as String? ?? 'Shivajinagar',
-              surveyNumber: extra['surveyNumber'] as String? ?? '142',
+              district: extra['district'] as String? ?? Defaults.district,
+              taluka: extra['taluka'] as String? ?? Defaults.taluka,
+              village: extra['village'] as String? ?? Defaults.village,
+              surveyNumber: extra['surveyNumber'] as String? ?? Defaults.surveyNumber,
               gisCode:
-                  extra['gisCode'] as String? ?? 'RVM0501270500010046290000',
+                  extra['gisCode'] as String? ?? Defaults.gisCode,
             );
           }
           return PropertySearchDetailsScreen(
             property: const PropertyModel(
               propertyId: 'PROP-101',
-              gisCode: 'RVM0501270500010046290000',
+              gisCode: Defaults.gisCode,
               title: 'Survey No. 142',
               surveyDetails: SurveyModel(
-                id: 'SURV-101',
-                surveyNumber: '142',
+                id: '${Defaults.surveyIdPrefix}101',
+                surveyNumber: Defaults.surveyNumber,
                 subdivisionNumber: '3/A',
-                district: 'Pune',
-                taluka: 'Haveli',
-                village: 'Shivajinagar',
-                areaSqMeters: 4500.0,
-                landType: 'Agricultural',
-                location: LocationModel(latitude: 18.5204, longitude: 73.8567),
+                district: Defaults.district,
+                taluka: Defaults.taluka,
+                village: Defaults.village,
+                areaSqMeters: Defaults.defaultAreaSqMeters,
+                landType: Defaults.landType,
+                location: LocationModel(latitude: Defaults.latitude, longitude: Defaults.longitude),
               ),
               owners: [],
               totalAreaHectares: 0.45,
               boundaryPoints: [],
-              status: 'Verified',
+              status: Defaults.propertyStatus,
             ),
-            district: 'Pune',
-            taluka: 'Haveli',
-            village: 'Shivajinagar',
-            surveyNumber: '142',
-            gisCode: 'RVM0501270500010046290000',
+            district: Defaults.district,
+            taluka: Defaults.taluka,
+            village: Defaults.village,
+            surveyNumber: Defaults.surveyNumber,
+            gisCode: Defaults.gisCode,
           );
         },
       ),

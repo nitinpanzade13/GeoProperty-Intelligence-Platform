@@ -3,6 +3,7 @@ import '../services/storage_service.dart';
 import '../models/survey_model.dart';
 import '../models/location_model.dart';
 import '../utils/result.dart';
+import '../constants/defaults.dart';
 
 abstract class ISurveyRepository {
   Future<Result<List<SurveyModel>>> getSurveys({String? query, String? gisCode});
@@ -21,7 +22,7 @@ class SurveyRepository implements ISurveyRepository {
   @override
   Future<Result<List<SurveyModel>>> getSurveys({String? query, String? gisCode}) async {
     try {
-      final code = gisCode ?? 'MH-2701-270101-52001';
+      final code = gisCode ?? Defaults.legacyGisCode;
       final list = await apiService.fetchSurveys(gisCode: code);
       final favorites = storageService.getFavoriteIds();
 
@@ -65,43 +66,43 @@ class SurveyRepository implements ISurveyRepository {
         id: 'SURV-101',
         surveyNumber: '142',
         subdivisionNumber: '3/A',
-        district: 'Pune',
-        taluka: 'Haveli',
-        village: 'Shivajinagar',
-        areaSqMeters: 4500.0,
-        landType: 'Agricultural / Irrigated',
+        district: Defaults.district,
+        taluka: Defaults.taluka,
+        village: Defaults.village,
+        areaSqMeters: Defaults.defaultAreaSqMeters,
+        landType: Defaults.landType,
         location: LocationModel(
-          latitude: 18.5204,
-          longitude: 73.8567,
-          address: 'Shivajinagar, Pune, Maharashtra 411005',
-          district: 'Pune',
-          taluka: 'Haveli',
-          village: 'Shivajinagar',
+          latitude: Defaults.latitude,
+          longitude: Defaults.longitude,
+          address: Defaults.fallbackAddress,
+          district: Defaults.district,
+          taluka: Defaults.taluka,
+          village: Defaults.village,
         ),
       ),
       SurveyModel(
         id: 'SURV-102',
         surveyNumber: '145',
         subdivisionNumber: '1',
-        district: 'Pune',
-        taluka: 'Haveli',
-        village: 'Shivajinagar',
+        district: Defaults.district,
+        taluka: Defaults.taluka,
+        village: Defaults.village,
         areaSqMeters: 8200.5,
         landType: 'Non-Agricultural (Commercial)',
         location: LocationModel(
           latitude: 18.5240,
           longitude: 73.8590,
           address: 'FC Road, Pune',
-          district: 'Pune',
-          taluka: 'Haveli',
-          village: 'Shivajinagar',
+          district: Defaults.district,
+          taluka: Defaults.taluka,
+          village: Defaults.village,
         ),
       ),
       SurveyModel(
         id: 'SURV-103',
         surveyNumber: '88',
         subdivisionNumber: '2/B',
-        district: 'Pune',
+        district: Defaults.district,
         taluka: 'Mulshi',
         village: 'Hinjawadi',
         areaSqMeters: 12400.0,
@@ -110,7 +111,7 @@ class SurveyRepository implements ISurveyRepository {
           latitude: 18.5912,
           longitude: 73.7389,
           address: 'Phase 1, Hinjawadi, Pune',
-          district: 'Pune',
+          district: Defaults.district,
           taluka: 'Mulshi',
           village: 'Hinjawadi',
         ),

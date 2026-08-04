@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String appName = 'Property Radar';
+  static const String appName = 'GeoProperty';
   static const String appTagline = 'AI-Powered Land Intelligence Platform';
   
   // Hive Boxes

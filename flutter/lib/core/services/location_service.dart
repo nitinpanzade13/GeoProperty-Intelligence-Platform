@@ -1,5 +1,4 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 
 class LocationService {
   Future<bool> checkPermission() async {
@@ -48,16 +47,5 @@ class LocationService {
     }
   }
 
-  Future<String?> getAddressFromCoordinates(double latitude, double longitude) async {
-    try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
-      if (placemarks.isNotEmpty) {
-        final place = placemarks.first;
-        return '${place.street}, ${place.subLocality}, ${place.locality}, ${place.administrativeArea} ${place.postalCode}';
-      }
-    } catch (e) {
-      return null;
-    }
-    return null;
-  }
+
 }

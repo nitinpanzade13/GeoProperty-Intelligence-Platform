@@ -1,5 +1,6 @@
 import '../services/village_api_service.dart';
 import '../utils/result.dart';
+import '../constants/defaults.dart';
 
 abstract class IVillageRepository {
   Future<Result<List<dynamic>>> getDistricts();
@@ -48,7 +49,7 @@ class VillageRepository implements IVillageRepository {
       String districtCode, String talukaCode, String villageCode) async {
     try {
       final res = await apiService.resolveGisCode(districtCode, talukaCode, villageCode);
-      return Result.success(res['gis_code'] as String? ?? 'MH-2701-270101-52001');
+      return Result.success(res['gis_code'] as String? ?? Defaults.legacyGisCode);
     } catch (e) {
       return Result.success('MH-$districtCode-$talukaCode-$villageCode');
     }

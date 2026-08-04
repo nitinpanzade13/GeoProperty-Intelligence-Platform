@@ -10,6 +10,7 @@ import '../../core/models/survey_model.dart';
 import '../../core/models/property_model.dart';
 import '../../core/utils/result.dart';
 import '../../core/routing/routes.dart';
+import '../../core/constants/defaults.dart';
 import 'widgets/search_dropdown.dart';
 
 class PropertySearchScreen extends ConsumerStatefulWidget {
@@ -68,7 +69,7 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
         final map = item as Map<String, dynamic>;
 
         final code = map['district_code']?.toString() ?? '2701';
-        final name = map['district_name']?.toString() ?? 'Pune';
+        final name = map['district_name']?.toString() ?? Defaults.district;
         return DropdownItem<String>(value: code, label: name);
       }).toList();
 
@@ -98,7 +99,7 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
         final map = item as Map<String, dynamic>;
 
         final code = map['taluka_code']?.toString() ?? '${districtCode}01';
-        final name = map['taluka_name']?.toString() ?? 'Haveli';
+        final name = map['taluka_name']?.toString() ?? Defaults.taluka;
         return DropdownItem<String>(value: code, label: name);
       }).toList();
 
@@ -125,7 +126,7 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
         final map = item as Map<String, dynamic>;
 
         final code = map['village_code']?.toString() ?? '52001';
-        final name = map['village_name']?.toString() ?? 'Shivajinagar';
+        final name = map['village_name']?.toString() ?? Defaults.village;
         return DropdownItem<String>(value: code, label: name);
       }).toList();
 
@@ -241,7 +242,7 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
 
   void _openVillageMapImmediate() {
     if (_selectedVillageCode == null) return;
-    final gisCode = _resolvedGisCode ?? 'RVM0501270500010046290000';
+    final gisCode = _resolvedGisCode ?? Defaults.gisCode;
     context.push(
       Routes.map,
       extra: {
@@ -266,9 +267,9 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
 
     setState(() => _isSubmitting = true);
     final propertyRepo = ref.read(propertyRepositoryProvider);
-    final gisCode = _resolvedGisCode ?? 'RVM0501270500010046290000';
+    final gisCode = _resolvedGisCode ?? Defaults.gisCode;
 
-    final result = await propertyRepo.getPropertyDetails('SURV-$surveyNum',
+    final result = await propertyRepo.getPropertyDetails('${Defaults.surveyIdPrefix}$surveyNum',
         gisCode: gisCode, surveyNumber: surveyNum);
 
     if (mounted) {
@@ -282,9 +283,9 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
           Routes.propertySearchDetails,
           extra: {
             'property': prop,
-            'district': _selectedDistrictName ?? 'Pune',
-            'taluka': _selectedTalukaName ?? 'Haveli',
-            'village': _selectedVillageName ?? 'Shivajinagar',
+            'district': _selectedDistrictName ?? Defaults.district,
+            'taluka': _selectedTalukaName ?? Defaults.taluka,
+            'village': _selectedVillageName ?? Defaults.village,
             'surveyNumber': surveyNum,
             'gisCode': gisCode,
           },

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../constants/defaults.dart';
 
 class UserModel extends Equatable {
   final String userId;
@@ -27,7 +28,7 @@ class UserModel extends Equatable {
       name: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
       avatarUrl: json['avatar_url'] as String?,
-      role: json['role'] as String? ?? 'Land Surveyor',
+      role: json['role'] as String? ?? Defaults.userRole,
       savedPropertyIds: (json['saved_property_ids'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??

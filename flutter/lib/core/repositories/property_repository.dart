@@ -5,6 +5,7 @@ import '../models/location_model.dart';
 import '../models/owner_model.dart';
 import '../models/polygon_model.dart';
 import '../utils/result.dart';
+import '../constants/defaults.dart';
 
 abstract class IPropertyRepository {
   Future<Result<PropertyModel>> getPropertyDetails(String propertyId,
@@ -26,7 +27,7 @@ class PropertyRepository implements IPropertyRepository {
     String? surveyNumber,
   }) async {
     try {
-      final code = gisCode ?? 'MH-2701-270101-52001';
+      final code = gisCode ?? Defaults.legacyGisCode;
       final sNum = surveyNumber ??
           (propertyId.contains('-') ? propertyId.split('-').last : '142');
 
@@ -43,18 +44,18 @@ class PropertyRepository implements IPropertyRepository {
             id: 'SURV-101',
             surveyNumber: '142',
             subdivisionNumber: '3/A',
-            district: 'Pune',
-            taluka: 'Haveli',
-            village: 'Shivajinagar',
-            areaSqMeters: 4500.0,
-            landType: 'Agricultural / Irrigated',
+            district: Defaults.district,
+            taluka: Defaults.taluka,
+            village: Defaults.village,
+            areaSqMeters: Defaults.defaultAreaSqMeters,
+            landType: Defaults.landType,
             location: LocationModel(
-              latitude: 18.5204,
-              longitude: 73.8567,
-              address: 'Shivajinagar, Pune, Maharashtra 411005',
-              district: 'Pune',
-              taluka: 'Haveli',
-              village: 'Shivajinagar',
+              latitude: Defaults.latitude,
+              longitude: Defaults.longitude,
+              address: Defaults.fallbackAddress,
+              district: Defaults.district,
+              taluka: Defaults.taluka,
+              village: Defaults.village,
             ),
           ),
           owners: const [
@@ -81,7 +82,7 @@ class PropertyRepository implements IPropertyRepository {
             PolygonPointModel(latitude: 18.5195, longitude: 73.8570),
           ],
           valuationEstimateInr: 8325000.0,
-          status: 'Government Verified',
+          status: Defaults.propertyStatus,
         ),
       );
     }
