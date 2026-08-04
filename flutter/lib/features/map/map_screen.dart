@@ -8,6 +8,7 @@ import '../../core/providers/service_providers.dart';
 import '../../core/widgets/glass_card.dart';
 import '../../core/models/property_model.dart';
 import '../../core/utils/result.dart';
+import '../../core/utils/geojson_parser.dart';
 import 'widgets/map_controls.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
@@ -34,6 +35,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   LatLng _userLocation = const LatLng(18.5204, 73.8567);
   List<Marker> _markers = [];
   List<Polygon> _polygons = [];
+  List<Polygon> _villagePolygons = [];
   List<Polygon> _highlightedPolygons = [];
 
   bool _isLoadingProperty = false;
@@ -51,13 +53,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Future<void> _initUserLocationAndProperty() async {
+    // Always show the current GPS marker.
     _updateUserLocationMarker(_userLocation);
-    if (widget.initialLatitude == null || widget.initialLongitude == null) {
-      await _locateMe(moveCamera: false);
-    } else {
-      _mapController.move(_userLocation, 16.0);
+
+    // If we opened the map from "View on Map",
+    // DO NOT move to the user's location.
+    if (widget.initialSurveyNumber != null && widget.initialGisCode != null) {
+      await _fetchPropertyDetails();
+      return;
     }
-    await _fetchPropertyDetails();
+
+    // Otherwise this is a normal map screen.
+    await _locateMe(moveCamera: true);
   }
 
   void _updateUserLocationMarker(LatLng position) {
@@ -134,6 +141,26 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _markers = newMarkers;
   }
 
+  Future<void> _loadVillageMap() async {
+    if (_gisCode == null) return;
+
+    final propertyRepo = ref.read(propertyRepositoryProvider);
+
+    final result = await propertyRepo.getVillageMap(
+      _gisCode!,
+    );
+
+    if (result is Success<Map<String, dynamic>>) {
+      setState(() {
+        _villagePolygons = GeoJsonParser.parse(result.data);
+      });
+
+      debugPrint(
+        "Village polygons loaded: ${_villagePolygons.length}",
+      );
+    }
+  }
+
   Future<void> _locateMe({bool moveCamera = true}) async {
     try {
       final locationService = ref.read(locationServiceProvider);
@@ -170,8 +197,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
       if (result is Success<PropertyModel>) {
         final prop = result.data;
-        _loadedProperty = prop;
-        _gisCode = gis;
+        setState(() {
+          _loadedProperty = prop;
+          _gisCode = gis;
+        });
 
         if (prop.boundaryPoints.isNotEmpty) {
           final List<LatLng> surveyPoints = prop.boundaryPoints
@@ -204,6 +233,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
           // Automatically fit camera zoom to selected property
           _autoFitPolygon(surveyPoints);
+          await _loadVillageMap();
         }
       }
     } catch (_) {}
@@ -274,14 +304,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
             children: [
               // 1a. Base OpenStreetMap Layer
-              // TileLayer(
-              //   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              //   userAgentPackageName: 'com.example.geopropertyintelligence',
-              // ),
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.geopropertyintelligence',
+              ),
 
               // 1b. Official BhuNaksha WMS Layer via FastAPI Backend Proxy
               if (_gisCode != null && _gisCode!.isNotEmpty)
                 TileLayer(
+                  key: ValueKey(_gisCode),
                   wmsOptions: WMSTileLayerOptions(
                     baseUrl: wmsProxyBaseUrl,
                     version: '1.3.0',
@@ -301,6 +332,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ),
 
               // 2. Base Property Polygons Layer
+              // Village polygons
+              if (_villagePolygons.isNotEmpty)
+                PolygonLayer(
+                  polygons: _villagePolygons,
+                ),
+
+              // Selected property
               PolygonLayer(polygons: _polygons),
 
               // 3. Selected Property Polygon Highlight Layer

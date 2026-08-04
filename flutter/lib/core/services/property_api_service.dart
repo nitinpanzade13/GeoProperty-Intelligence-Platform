@@ -26,8 +26,11 @@ class PropertyApiService {
       final om = o as Map<String, dynamic>;
       return OwnerModel(
         ownerId: om['owner_id'] as String? ?? 'OWN-101',
-        fullName: om['owner_name'] as String? ?? om['full_name'] as String? ?? 'Registered Owner',
-        ownershipPercentage: (om['ownership_percentage'] as num?)?.toDouble() ?? 100.0,
+        fullName: om['owner_name'] as String? ??
+            om['full_name'] as String? ??
+            'Registered Owner',
+        ownershipPercentage:
+            (om['ownership_percentage'] as num?)?.toDouble() ?? 100.0,
         khataNumber: om['khata_number'] as String? ?? 'KH-101',
       );
     }).toList();
@@ -44,10 +47,12 @@ class PropertyApiService {
       }).toList();
     }
 
-    final double areaSqMeters = (map['area_sq_meters'] as num?)?.toDouble() ?? 4500.0;
+    final double areaSqMeters =
+        (map['area_sq_meters'] as num?)?.toDouble() ?? 4500.0;
 
     return PropertyModel(
       propertyId: map['property_id'] as String? ?? 'PROP-101',
+      gisCode: map['gis_code'] as String? ?? gisCode,
       title: 'Survey No. $surveyNumber - Shivajinagar',
       surveyDetails: SurveyModel(
         id: map['property_id'] as String? ?? 'SURV-$surveyNumber',
@@ -67,7 +72,8 @@ class PropertyApiService {
         ),
       ),
       owners: owners,
-      totalAreaHectares: double.parse((areaSqMeters / 10000.0).toStringAsFixed(4)),
+      totalAreaHectares:
+          double.parse((areaSqMeters / 10000.0).toStringAsFixed(4)),
       boundaryPoints: polyPoints,
       valuationEstimateInr: areaSqMeters * 1850.0,
       status: 'Verified',
@@ -82,6 +88,19 @@ class PropertyApiService {
       'gis_code': gisCode,
       'survey_number': surveyNumber,
     });
+    return data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> fetchVillageMap({
+    required String gisCode,
+  }) async {
+    final data = await apiClient.get(
+      '/village/full-map',
+      queryParameters: {
+        'gis_code': gisCode,
+      },
+    );
+
     return data as Map<String, dynamic>;
   }
 }

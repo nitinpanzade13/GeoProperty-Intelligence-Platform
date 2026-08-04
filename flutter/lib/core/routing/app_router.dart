@@ -58,12 +58,14 @@ class AppRouter {
               taluka: extra['taluka'] as String? ?? 'Haveli',
               village: extra['village'] as String? ?? 'Shivajinagar',
               surveyNumber: extra['surveyNumber'] as String? ?? '142',
-              gisCode: extra['gisCode'] as String? ?? 'RVM0501270500010046290000',
+              gisCode:
+                  extra['gisCode'] as String? ?? 'RVM0501270500010046290000',
             );
           }
           return PropertySearchDetailsScreen(
             property: const PropertyModel(
               propertyId: 'PROP-101',
+              gisCode: 'RVM0501270500010046290000',
               title: 'Survey No. 142',
               surveyDetails: SurveyModel(
                 id: 'SURV-101',

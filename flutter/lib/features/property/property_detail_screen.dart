@@ -19,7 +19,8 @@ class PropertyDetailScreen extends ConsumerStatefulWidget {
   const PropertyDetailScreen({super.key, required this.propertyId});
 
   @override
-  ConsumerState<PropertyDetailScreen> createState() => _PropertyDetailScreenState();
+  ConsumerState<PropertyDetailScreen> createState() =>
+      _PropertyDetailScreenState();
 }
 
 class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
@@ -40,8 +41,11 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
     });
 
     final repo = ref.read(propertyRepositoryProvider);
-    final sNum = widget.propertyId.contains('-') ? widget.propertyId.split('-').last : widget.propertyId;
-    final result = await repo.getPropertyDetails(widget.propertyId, surveyNumber: sNum);
+    final sNum = widget.propertyId.contains('-')
+        ? widget.propertyId.split('-').last
+        : widget.propertyId;
+    final result =
+        await repo.getPropertyDetails(widget.propertyId, surveyNumber: sNum);
 
     if (result is Success<PropertyModel>) {
       _property = result.data;
@@ -113,7 +117,8 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: AppColors.secondary.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
@@ -129,7 +134,10 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                           ),
                           Text(
                             'GIS Code: ${prop.surveyDetails.id.contains("MH-") ? prop.surveyDetails.id : "MH-2701-270101-52001"}',
-                            style: const TextStyle(color: Colors.grey, fontSize: 11, fontFamily: 'monospace'),
+                            style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                                fontFamily: 'monospace'),
                           ),
                         ],
                       ),
@@ -138,7 +146,8 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                       const SizedBox(height: 4),
                       Text(
                         '${survey.village}, ${survey.taluka}, ${survey.district}, Maharashtra',
-                        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: Colors.grey),
                       ),
                     ],
                   ),
@@ -152,7 +161,8 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                   child: Column(
                     children: [
                       _buildInfoRow('Survey Number', survey.surveyNumber),
-                      _buildInfoRow('Subdivision (Hissa)', survey.subdivisionNumber ?? '1'),
+                      _buildInfoRow('Subdivision (Hissa)',
+                          survey.subdivisionNumber ?? '1'),
                       _buildInfoRow('Land Classification', survey.landType),
                       _buildInfoRow('District', survey.district),
                       _buildInfoRow('Taluka', survey.taluka),
@@ -168,8 +178,10 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                 GlassCard(
                   child: Column(
                     children: [
-                      _buildInfoRow('Total Sq. Meters', '${survey.areaSqMeters} m²'),
-                      _buildInfoRow('Area in Hectares', '${prop.totalAreaHectares} Ha'),
+                      _buildInfoRow(
+                          'Total Sq. Meters', '${survey.areaSqMeters} m²'),
+                      _buildInfoRow(
+                          'Area in Hectares', '${prop.totalAreaHectares} Ha'),
                       _buildInfoRow('Pot Kharaba (Uncultivable)', '150.0 m²'),
                       if (prop.valuationEstimateInr != null)
                         _buildInfoRow(
@@ -183,7 +195,8 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                 const SizedBox(height: 16),
 
                 // Multi-Owner Expandable Cards
-                Text('Registered Property Owners (${prop.owners.length})', style: theme.textTheme.titleLarge),
+                Text('Registered Property Owners (${prop.owners.length})',
+                    style: theme.textTheme.titleLarge),
                 const SizedBox(height: 8),
                 ListView.separated(
                   shrinkWrap: true,
@@ -201,7 +214,9 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                 const SizedBox(height: 16),
 
                 // Polygon Geometry Vertices
-                Text('GIS Polygon Vertices (${prop.boundaryPoints.length} points)', style: theme.textTheme.titleLarge),
+                Text(
+                    'GIS Polygon Vertices (${prop.boundaryPoints.length} points)',
+                    style: theme.textTheme.titleLarge),
                 const SizedBox(height: 8),
                 GlassCard(
                   child: Column(
@@ -219,7 +234,8 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 2.0),
                           child: Text(
                             'P${idx + 1}: Lat ${pt.latitude.toStringAsFixed(5)}, Lng ${pt.longitude.toStringAsFixed(5)}',
-                            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                            style: const TextStyle(
+                                fontFamily: 'monospace', fontSize: 13),
                           ),
                         );
                       }),
@@ -232,7 +248,17 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                 CustomButton(
                   text: 'Inspect on GIS Interactive Map',
                   icon: Icons.map_rounded,
-                  onPressed: () => context.push(Routes.map, extra: survey.surveyNumber),
+                  onPressed: () {
+                    context.push(
+                      Routes.map,
+                      extra: {
+                        'surveyNumber': survey.surveyNumber,
+                        'gisCode': _property!.gisCode,
+                        // 'latitude': _property!.boundaryPoints.first.latitude,
+                        // 'longitude': _property!.boundaryPoints.first.longitude,
+                      },
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 CustomButton(
@@ -241,7 +267,9 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                   isSecondary: true,
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Land Intelligence PDF report generated.')),
+                      const SnackBar(
+                          content:
+                              Text('Land Intelligence PDF report generated.')),
                     );
                   },
                 ),

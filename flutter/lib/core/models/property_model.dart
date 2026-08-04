@@ -5,6 +5,7 @@ import 'polygon_model.dart';
 
 class PropertyModel extends Equatable {
   final String propertyId;
+  final String gisCode;
   final String title;
   final SurveyModel surveyDetails;
   final List<OwnerModel> owners;
@@ -15,6 +16,7 @@ class PropertyModel extends Equatable {
 
   const PropertyModel({
     required this.propertyId,
+    required this.gisCode,
     required this.title,
     required this.surveyDetails,
     required this.owners,
@@ -27,18 +29,23 @@ class PropertyModel extends Equatable {
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
     return PropertyModel(
       propertyId: json['property_id'] as String? ?? '',
+      gisCode: json['gis_code'] as String? ?? '',
       title: json['title'] as String? ?? '',
-      surveyDetails: SurveyModel.fromJson(json['survey_details'] as Map<String, dynamic>),
+      surveyDetails:
+          SurveyModel.fromJson(json['survey_details'] as Map<String, dynamic>),
       owners: (json['owners'] as List<dynamic>?)
               ?.map((e) => OwnerModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      totalAreaHectares: (json['total_area_hectares'] as num?)?.toDouble() ?? 0.0,
+      totalAreaHectares:
+          (json['total_area_hectares'] as num?)?.toDouble() ?? 0.0,
       boundaryPoints: (json['boundary_points'] as List<dynamic>?)
-              ?.map((e) => PolygonPointModel.fromJson(e as Map<String, dynamic>))
+              ?.map(
+                  (e) => PolygonPointModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      valuationEstimateInr: (json['valuation_estimate_inr'] as num?)?.toDouble(),
+      valuationEstimateInr:
+          (json['valuation_estimate_inr'] as num?)?.toDouble(),
       status: json['status'] as String? ?? 'Verified',
     );
   }
@@ -46,6 +53,7 @@ class PropertyModel extends Equatable {
   Map<String, dynamic> toJson() {
     return {
       'property_id': propertyId,
+      'gis_code': gisCode,
       'title': title,
       'survey_details': surveyDetails.toJson(),
       'owners': owners.map((e) => e.toJson()).toList(),
@@ -59,6 +67,7 @@ class PropertyModel extends Equatable {
   @override
   List<Object?> get props => [
         propertyId,
+        gisCode,
         title,
         surveyDetails,
         owners,

@@ -9,7 +9,11 @@ from app.schemas.village import (
     GISCodeResponse,
 )
 from app.services.village_service import VillageService
-from app.providers.deps import get_village_service
+from app.services.village_map_service import VillageMapService
+from app.providers.deps import (
+    get_village_service,
+    get_village_map_service,
+)
 
 router = APIRouter()
 
@@ -56,3 +60,19 @@ async def resolve_village_gis_code(
         village_code=payload.village_code,
     )
     return APIResponse.ok(data=res, message="GIS code resolved successfully")
+
+@router.get("/village/full-map")
+async def get_complete_village_map(
+    gis_code: str = Query(..., description="Village GIS Code"),
+    service: VillageMapService = Depends(get_village_map_service),
+):
+    """
+    Returns the complete village map as GeoJSON.
+    """
+
+    result = await service.get_complete_village_map(gis_code)
+
+    return APIResponse.ok(
+        data=result,
+        message="Village map generated successfully",
+    )
