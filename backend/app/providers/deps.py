@@ -15,7 +15,7 @@ from app.services.property_service import PropertyService
 from app.services.map_service import MapService
 from app.services.village_map_service import VillageMapService
 from app.services.profile_service import ProfileService
-from app.repositories.village_cache_repository import VillageCacheRepository
+from app.repositories.cache.village_cache_repository import VillageCacheRepository
 
 # Singleton provider instance
 _provider_instance: LandRecordsProvider = MaharashtraLandRecordsProvider()

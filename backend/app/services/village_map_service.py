@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
 
 from app.repositories.village_map_repository import VillageMapRepository
-from app.repositories.village_cache_repository import VillageCacheRepository
+from app.repositories.cache.village_cache_repository import VillageCacheRepository
 
 
 class VillageMapService:
