@@ -1,4 +1,4 @@
-from app.repositories.map_repository import MapRepository
+from app.repositories.remote.map_repository import MapRepository
 from app.schemas.extent import (
     PropertyExtentResponse,
     PlotExtentSchema,
