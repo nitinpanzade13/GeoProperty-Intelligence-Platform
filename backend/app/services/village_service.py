@@ -1,5 +1,5 @@
 from typing import List
-from app.repositories.village_repository import VillageRepository
+from app.repositories.remote.village_repository import VillageRepository
 from app.schemas.village import (
     DistrictSchema,
     TalukaSchema,

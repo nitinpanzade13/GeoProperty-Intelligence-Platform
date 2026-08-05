@@ -1,11 +1,13 @@
 from app.providers.base_provider import LandRecordsProvider
 from app.providers.maharashtra_provider import MaharashtraLandRecordsProvider
-from app.repositories.village_repository import VillageRepository
+
+from app.repositories.remote.village_repository import VillageRepository
 from app.repositories.survey_repository import SurveyRepository
 from app.repositories.property_repository import PropertyRepository
 from app.repositories.map_repository import MapRepository
 from app.repositories.village_map_repository import VillageMapRepository
 from app.repositories.mock_repository import mock_repository
+
 from app.services.location_service import LocationService
 from app.services.village_service import VillageService
 from app.services.survey_service import SurveyService
