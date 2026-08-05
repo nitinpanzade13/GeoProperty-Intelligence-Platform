@@ -1,4 +1,6 @@
+# =========================
 # Flutter
+# =========================
 build/
 .dart_tool/
 .packages
@@ -23,20 +25,56 @@ windows/build/
 # Linux
 linux/build/
 
-# VS Code
-.vscode/
-
+# =========================
 # Python
-__pycache__/
-*.pyc
-.venv/
+# =========================
 venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
 
+# =========================
 # Environment
+# =========================
 .env
+.env.*
+!.env.example
 
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Testing
+# =========================
+.pytest_cache/
+.coverage
+coverage/
+htmlcov/
+
+# =========================
 # Logs
+# =========================
 *.log
 
-# Generated
-coverage/
+# =========================
+# Database
+# =========================
+*.db
+*.sqlite3
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Python Packaging
+# =========================
+*.egg-info/
+dist/
