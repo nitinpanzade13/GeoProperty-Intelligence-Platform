@@ -1,7 +1,7 @@
 import unittest
 from app.providers.maharashtra_provider import MaharashtraLandRecordsProvider
-from app.repositories.village_repository import VillageRepository
-from app.repositories.survey_repository import SurveyRepository
+from backend.app.repositories.remote.village_repository import VillageRepository
+from backend.app.repositories.remote.survey_repository import SurveyRepository
 from app.repositories.property_repository import PropertyRepository
 
 

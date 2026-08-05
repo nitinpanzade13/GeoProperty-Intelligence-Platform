@@ -1,7 +1,7 @@
 import asyncio
 from typing import List, Dict
 
-from app.repositories.survey_repository import SurveyRepository
+from app.repositories.remote.survey_repository import SurveyRepository
 from app.repositories.property_repository import PropertyRepository
 
 

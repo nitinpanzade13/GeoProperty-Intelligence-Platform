@@ -1,4 +1,4 @@
-from app.repositories.survey_repository import SurveyRepository
+from app.repositories.remote.survey_repository import SurveyRepository
 from app.schemas.survey import VillageSurveysResponse, SurveySchema
 
 
