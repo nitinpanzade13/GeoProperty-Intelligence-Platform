@@ -5,15 +5,15 @@ from sqlalchemy import (
     JSON,
     DateTime,
 )
+
 from sqlalchemy.sql import func
 
 from app.database.base import Base
 
 
-class VillageCache(Base):
+class VillageMapCache(Base):
     __tablename__ = "village_map_cache"
 
-    # GIS code is globally unique.
     gis_code = Column(
         String(40),
         primary_key=True,
@@ -34,14 +34,12 @@ class VillageCache(Base):
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
-        nullable=False,
     )
 
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
-        nullable=False,
     )
 
     last_verified_at = Column(
