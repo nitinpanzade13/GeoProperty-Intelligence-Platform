@@ -2,7 +2,7 @@ import asyncio
 from typing import List, Dict
 
 from app.repositories.remote.survey_repository import SurveyRepository
-from app.repositories.property_repository import PropertyRepository
+from app.repositories.remote.property_repository import PropertyRepository
 
 
 class VillageMapRepository:

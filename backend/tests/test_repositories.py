@@ -1,8 +1,8 @@
 import unittest
 from app.providers.maharashtra_provider import MaharashtraLandRecordsProvider
-from backend.app.repositories.remote.village_repository import VillageRepository
-from backend.app.repositories.remote.survey_repository import SurveyRepository
-from app.repositories.property_repository import PropertyRepository
+from app.repositories.remote.village_repository import VillageRepository
+from app.repositories.remote.survey_repository import SurveyRepository
+from app.repositories.remote.property_repository import PropertyRepository
 
 
 class TestRepositories(unittest.IsolatedAsyncioTestCase):

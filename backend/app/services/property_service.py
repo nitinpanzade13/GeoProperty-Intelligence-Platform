@@ -1,4 +1,4 @@
-from app.repositories.property_repository import PropertyRepository
+from app.repositories.remote.property_repository import PropertyRepository
 from app.schemas.property import (
     PropertyDetailsResponse,
     OwnerSchema,
