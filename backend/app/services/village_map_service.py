@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
 
 from app.repositories.village_map_repository import VillageMapRepository
-from app.repositories.cache.village_cache_repository import VillageCacheRepository
+from app.repositories.cache.village_map_cache_repository import VillageMapCacheRepository
 
 
 class VillageMapService:
@@ -13,7 +13,7 @@ class VillageMapService:
     def __init__(
         self,
         repository: VillageMapRepository,
-        cache_repository: VillageCacheRepository,
+        cache_repository: VillageMapCacheRepository,
     ):
         self.repository = repository
         self.cache_repository = cache_repository
