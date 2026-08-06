@@ -36,8 +36,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   LatLng _userLocation = LatLng(Defaults.latitude, Defaults.longitude);
   List<Marker> _markers = [];
   List<Polygon> _polygons = [];
-  List<Polygon> _villagePolygons = [];
+  List<VillagePolygon> _villageFeatures = [];
   List<Polygon> _highlightedPolygons = [];
+  VillagePolygon? _selectedFeature;
 
   bool _isLoadingProperty = false;
   PropertyModel? _loadedProperty;
@@ -153,11 +154,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     if (result is Success<Map<String, dynamic>>) {
       setState(() {
-        _villagePolygons = GeoJsonParser.parse(result.data);
+        _villageFeatures = GeoJsonParser.parse(result.data);
       });
 
       debugPrint(
-        "Village polygons loaded: ${_villagePolygons.length}",
+        "Village features loaded: ${_villageFeatures.length}",
       );
     }
   }
@@ -263,6 +264,77 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     });
   }
 
+  void _selectVillageFeature(VillagePolygon feature) {
+    setState(() {
+      _selectedFeature = feature;
+
+      _highlightedPolygons = [
+        Polygon(
+          points: feature.polygon.points,
+          borderStrokeWidth: 4,
+          borderColor: Colors.amberAccent,
+          color: Colors.amberAccent.withOpacity(0.35),
+        ),
+      ];
+    });
+
+    _autoFitPolygon(feature.polygon.points);
+
+    _showPropertyBottomSheet(feature);
+  }
+
+  void _showPropertyBottomSheet(
+    VillagePolygon feature,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Survey ${feature.surveyNumber}",
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _infoTile(
+                  "Property ID",
+                  feature.propertyId,
+                ),
+                _infoTile(
+                  "Plot ID",
+                  feature.plotId,
+                ),
+                _infoTile(
+                  "Area",
+                  "${feature.areaSqMeters} sq.m",
+                ),
+                _infoTile(
+                  "Owner",
+                  feature.ownerName.isEmpty ? "-" : feature.ownerName,
+                ),
+                _infoTile(
+                  "Khata",
+                  feature.khataNumber.isEmpty ? "-" : feature.khataNumber,
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _zoomIn() {
     try {
       final currentZoom = _mapController.camera.zoom;
@@ -279,19 +351,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Resolve dynamic FastAPI backend base URL for WMS proxy
-    final apiClient = ref.read(apiClientProvider);
-    final String apiBaseUrl = apiClient.config.apiBaseUrl;
-    final String wmsProxyBaseUrl = '$apiBaseUrl/map/wms?';
-
     return Scaffold(
       body: Stack(
         children: [
           // FlutterMap Layer Ordering:
-          // 1. Base OSM Tile Layer + Official BhuNaksha WMS Backend Proxy Layer
-          // 2. Property Polygons Layer
-          // 3. Selected Polygon Highlight Layer (Amber Accent)
-          // 4. Current Location Marker Layer (Blue GPS Pin)
+          // 1. OpenStreetMap Base Layer
+          // 2. Village GeoJSON Polygon Layer
+          // 3. Selected Property Polygon
+          // 4. Highlight Layer
+          // 5. Marker Layer
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -304,49 +372,30 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ),
             children: [
-              // 1a. Base OpenStreetMap Layer
+              // Base Property Polygons Layer
+
+              // 1. OpenStreetMap
               TileLayer(
-                urlTemplate: Defaults.osmTileUrl,
-                userAgentPackageName: Defaults.mapPackageName,
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.geoproperty.intelligence',
               ),
 
-              // 1b. Official BhuNaksha WMS Layer via FastAPI Backend Proxy
-              if (_gisCode != null && _gisCode!.isNotEmpty)
-                TileLayer(
-                  key: ValueKey(_gisCode),
-                  wmsOptions: WMSTileLayerOptions(
-                    baseUrl: wmsProxyBaseUrl,
-                    version: '1.3.0',
-                    crs: const Epsg3857(),
-                    layers: const [
-                      'VILLAGE_MAP',
-                    ],
-                    styles: const [
-                      'VILLAGE_MAP',
-                    ],
-                    format: 'image/png',
-                    transparent: true,
-                    otherParameters: {
-                      'gis_code': _gisCode!,
-                    },
-                  ),
-                ),
-
-              // 2. Base Property Polygons Layer
-              // Village polygons
-              if (_villagePolygons.isNotEmpty)
+              // 2. Village polygons
+              if (_villageFeatures.isNotEmpty)
                 PolygonLayer(
-                  polygons: _villagePolygons,
+                  polygons: _villageFeatures
+                      .map((feature) => feature.polygon)
+                      .toList(),
                 ),
 
-              // Selected property
+              // 3. Selected property
               PolygonLayer(polygons: _polygons),
 
-              // 3. Selected Property Polygon Highlight Layer
+              // 4. Highlight
               if (_highlightedPolygons.isNotEmpty)
                 PolygonLayer(polygons: _highlightedPolygons),
 
-              // 4. Current Location & Survey Markers Layer
+              // 5. Markers
               MarkerLayer(markers: _markers),
             ],
           ),
@@ -377,8 +426,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ),
                         Text(
                           _isLoadingProperty
-                              ? 'Fetching BhuNaksha WMS Proxy & Polygon Extents...'
-                              : 'Backend WMS Proxy: ${_gisCode ?? "Village Map"}',
+                              ? 'Loading village GeoJSON...'
+                              : 'Village: ${_gisCode ?? "Map"}',
                           style: const TextStyle(
                               fontSize: 11, color: AppColors.secondary),
                         ),
@@ -408,6 +457,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               onZoomIn: _zoomIn,
               onZoomOut: _zoomOut,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoTile(
+    String title,
+    String value,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(value),
           ),
         ],
       ),

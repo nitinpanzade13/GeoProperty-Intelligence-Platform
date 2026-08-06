@@ -29,6 +29,15 @@ from app.services.village_map_service import VillageMapService
 from app.services.profile_service import ProfileService
 
 
+from app.repositories.property_identify_repository import (
+    PropertyIdentifyRepository,
+)
+
+from app.services.property_identify_service import (
+    PropertyIdentifyService,
+)
+
+
 # ---------------------------------------------------------------------
 # Singleton Provider
 # ---------------------------------------------------------------------
@@ -133,3 +142,12 @@ def get_profile_service() -> ProfileService:
     return ProfileService(
         repository=mock_repository,
     )
+
+def get_property_identify_service() -> PropertyIdentifyService:
+    return PropertyIdentifyService(
+        repository=PropertyIdentifyRepository(
+            cache_repository=get_village_map_cache_repository(),
+        ),
+    )
+
+    

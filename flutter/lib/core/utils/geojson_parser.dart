@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '/features/map/models/village_polygon.dart';
+
 class GeoJsonParser {
-  static List<Polygon> parse(Map<String, dynamic> geoJson) {
-    final List<Polygon> polygons = [];
+  static List<VillagePolygon> parse(
+    Map<String, dynamic> geoJson,
+  ) {
+    final List<VillagePolygon> features = [];
 
-    final features = geoJson['features'] as List<dynamic>? ?? [];
+    final rawFeatures = geoJson['features'] as List<dynamic>? ?? [];
 
-    for (final feature in features) {
+    for (final feature in rawFeatures) {
       try {
         final geometry = feature['geometry'];
 
@@ -29,25 +33,30 @@ class GeoJsonParser {
           );
         }).toList();
 
-        final survey = feature['properties']['survey_number']?.toString() ?? '';
+        final properties = Map<String, dynamic>.from(
+          feature['properties'] ?? {},
+        );
 
-        polygons.add(
-          Polygon(
-            points: points,
+        final polygon = Polygon(
+          points: points,
+          borderStrokeWidth: 0.8,
+          borderColor: Colors.grey.shade700,
+          color: Colors.green.withOpacity(0.15),
+        );
 
-            // Save survey number inside label
-            label: survey,
-
-            borderStrokeWidth: 0.8,
-
-            borderColor: Colors.grey.shade700,
-
-            color: Colors.green.withOpacity(0.15),
+        features.add(
+          VillagePolygon(
+            polygon: polygon,
+            properties: properties,
           ),
         );
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        debugPrint(
+          'Failed to parse GeoJSON feature: $e\n$stackTrace',
+        );
+      }
     }
 
-    return polygons;
+    return features;
   }
 }
