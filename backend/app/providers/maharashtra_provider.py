@@ -344,6 +344,7 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
             owners_data = OwnerParser.parse_owners(owners_raw)
         else:
             logger.info("Parsing owners from INFO string.")
+        
             owners_data = OwnerParser.parse_owners(
                 raw_json.get("info", "")
             )

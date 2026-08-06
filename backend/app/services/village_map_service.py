@@ -1,13 +1,41 @@
-from typing import Dict, Any, List
+import asyncio
+import time
+from typing import Dict, Any
 
+from app.builders.geojson_builder import GeoJsonBuilder
 from app.repositories.village_map_repository import VillageMapRepository
-from app.repositories.cache.village_map_cache_repository import VillageMapCacheRepository
+from app.repositories.cache.village_map_cache_repository import (
+    VillageMapCacheRepository,
+)
 
+from app.core.logging import logger
+from app.core.config import settings
+from app.utils.cache_utils import is_cache_stale
+
+from app.services.refresh_manager import RefreshManager
 
 class VillageMapService:
     """
-    Builds a complete interactive village map as a GeoJSON FeatureCollection.
-    Uses PostgreSQL cache whenever possible.
+    Handles village GeoJSON generation.
+
+    Flow:
+        PostgreSQL Cache
+              │
+         Cache Hit?
+          │       │
+         Yes      No
+          │        │
+          ▼        ▼
+    Check Stale   Download
+          │        │
+          ▼        ▼
+    Background   Build GeoJSON
+      Refresh         │
+          │           ▼
+          └────► Save Cache
+                     │
+                     ▼
+                  Return
     """
 
     def __init__(
@@ -23,78 +51,140 @@ class VillageMapService:
         gis_code: str,
     ) -> Dict[str, Any]:
 
-        # -----------------------------------------------------
-        # STEP 1 : Check PostgreSQL Cache
-        # -----------------------------------------------------
+        start = time.perf_counter()
 
-        cached = self.cache_repository.get_by_gis_code(gis_code)
+        # -------------------------------------------------
+        # STEP 1 : PostgreSQL Cache
+        # -------------------------------------------------
+
+        cached = self.cache_repository.get_village_map(gis_code)
 
         if cached:
-            print(f"✅ Loaded village {gis_code} from PostgreSQL cache")
+
+            logger.info(
+                "Village %s loaded from PostgreSQL cache",
+                gis_code,
+            )
+
+            # ---------------------------------------------
+            # Cache Refresh Check
+            # ---------------------------------------------
+
+            if (
+                settings.ENABLE_BACKGROUND_REFRESH
+                and is_cache_stale(
+                    cached.last_verified_at,
+                    settings.CACHE_REFRESH_DAYS,
+                )
+            ):
+
+                logger.info(
+                    "Village %s cache is stale. Refresh scheduled.",
+                    gis_code,
+                )
+
+                can_refresh = await RefreshManager.start_refresh(
+                    gis_code
+                )
+
+                if can_refresh:
+
+                    asyncio.create_task(
+                        self.refresh_village_cache(gis_code)
+                    )
+
+                else:
+
+                    logger.info(
+                        "Refresh already running for %s",
+                        gis_code,
+                    )
+
+            logger.info(
+                "Response served in %.2f ms",
+                (time.perf_counter() - start) * 1000,
+            )
 
             return cached.geojson
 
-        print(f"⬇️ Downloading village {gis_code} from Bhunaksha")
-
-        # -----------------------------------------------------
-        # STEP 2 : Generate GeoJSON
-        # -----------------------------------------------------
-
-        properties = await self.repository.fetch_complete_village(gis_code)
-
-        features: List[Dict[str, Any]] = []
-
-        for item in properties:
-
-            property_obj = item["property"]
-
-            if (
-                property_obj.polygon is None
-                or not property_obj.polygon.points
-            ):
-                continue
-
-            coordinates = [
-                [point.longitude, point.latitude]
-                for point in property_obj.polygon.points
-            ]
-
-            # GeoJSON polygons must be closed
-            if coordinates[0] != coordinates[-1]:
-                coordinates.append(coordinates[0])
-
-            features.append(
-                {
-                    "type": "Feature",
-                    "properties": {
-                        "survey_number": property_obj.survey_number,
-                        "property_id": property_obj.property_id,
-                        "plot_id": property_obj.plot_id,
-                        "area_sq_meters": property_obj.area_sq_meters,
-                    },
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": [coordinates],
-                    },
-                }
-            )
-
-        geojson = {
-            "type": "FeatureCollection",
-            "gis_code": gis_code,
-            "total_surveys": len(features),
-            "features": features,
-        }
-
-        # -----------------------------------------------------
-        # STEP 3 : Save to PostgreSQL
-        # -----------------------------------------------------
-
-        self.cache_repository.save(
-            gis_code=gis_code,
-            geojson=geojson,
+        logger.info(
+            "Downloading village %s from Maharashtra BhuNaksha",
+            gis_code,
         )
 
-        print(f"💾 Saved village {gis_code} into PostgreSQL")
+        geojson = await self.build_and_cache(gis_code)
+
+        logger.info(
+            "Village generated in %.2f seconds",
+            time.perf_counter() - start,
+        )
 
         return geojson
+
+    # ---------------------------------------------------------
+    # Shared builder
+    # ---------------------------------------------------------
+
+    async def build_and_cache(
+        self,
+        gis_code: str,
+    ) -> Dict[str, Any]:
+
+        properties = await self.repository.fetch_complete_village(
+            gis_code
+        )
+
+        geojson = GeoJsonBuilder.build(
+            gis_code=gis_code,
+            properties=properties,
+        )
+
+        self.cache_repository.upsert_village_map(
+            gis_code=gis_code,
+            geojson=geojson,
+            survey_count=geojson["total_surveys"],
+        )
+
+        logger.info(
+            "Village %s cached into PostgreSQL",
+            gis_code,
+        )
+
+        return geojson
+
+    # ---------------------------------------------------------
+    # Background refresh
+    # ---------------------------------------------------------
+
+    async def refresh_village_cache(
+        self,
+        gis_code: str,
+    ):
+
+        try:
+
+            logger.info(
+                "Refreshing village %s in background...",
+                gis_code,
+            )
+
+            await self.build_and_cache(gis_code)
+
+            logger.info(
+                "Background refresh completed for %s",
+                gis_code,
+            )
+
+        except Exception as ex:
+
+            logger.exception(
+                "Background refresh failed for %s: %s",
+                gis_code,
+                ex,
+            )
+            
+        finally:
+
+            await RefreshManager.finish_refresh(
+                gis_code
+            )

@@ -3,11 +3,13 @@ from typing import List, Dict
 
 from app.repositories.remote.survey_repository import SurveyRepository
 from app.repositories.remote.property_repository import PropertyRepository
+from app.core.logging import logger
+from app.core.config import settings
 
 
 class VillageMapRepository:
     """
-    Downloads every survey polygon in parallel.
+    Downloads every survey polygon concurrently.
     """
 
     def __init__(
@@ -18,11 +20,18 @@ class VillageMapRepository:
         self.survey_repository = survey_repository
         self.property_repository = property_repository
 
-    async def fetch_complete_village(self, gis_code: str) -> List[Dict]:
+    async def fetch_complete_village(
+        self,
+        gis_code: str,
+    ) -> List[Dict]:
 
-        surveys = await self.survey_repository.fetch_surveys(gis_code)
+        surveys = await self.survey_repository.fetch_surveys(
+            gis_code
+        )
 
-        semaphore = asyncio.Semaphore(20)
+        semaphore = asyncio.Semaphore(
+            settings.MAX_PARALLEL_SURVEY_REQUESTS
+        )
 
         async def fetch_one(survey):
 
@@ -33,10 +42,14 @@ class VillageMapRepository:
             )
 
             async with semaphore:
+
                 try:
-                    property_data = await self.property_repository.fetch_property_details(
-                        gis_code=gis_code,
-                        survey_number=survey_number,
+
+                    property_data = (
+                        await self.property_repository.fetch_property_details(
+                            gis_code=gis_code,
+                            survey_number=survey_number,
+                        )
                     )
 
                     return {
@@ -44,7 +57,14 @@ class VillageMapRepository:
                         "property": property_data,
                     }
 
-                except Exception:
+                except Exception as ex:
+
+                    logger.warning(
+                        "Failed to download survey %s (%s)",
+                        survey_number,
+                        ex,
+                    )
+
                     return None
 
         tasks = [fetch_one(survey) for survey in surveys]

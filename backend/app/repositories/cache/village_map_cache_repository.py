@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -47,7 +47,7 @@ class VillageMapCacheRepository:
 
             cache.geojson = geojson
             cache.survey_count = survey_count
-            cache.last_verified_at = datetime.utcnow()
+            cache.last_verified_at = datetime.now(timezone.utc)
 
         else:
 
@@ -55,7 +55,7 @@ class VillageMapCacheRepository:
                 gis_code=gis_code,
                 geojson=geojson,
                 survey_count=survey_count,
-                last_verified_at=datetime.utcnow(),
+                last_verified_at=datetime.now(timezone.utc),
             )
 
             self.db.add(cache)
