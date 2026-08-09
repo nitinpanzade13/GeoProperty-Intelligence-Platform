@@ -2,15 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/service_providers.dart';
 import '../../core/widgets/glass_card.dart';
 import '../../core/models/property_model.dart';
+import '../../core/models/property_identify_model.dart';
 import '../../core/utils/result.dart';
 import '../../core/utils/geojson_parser.dart';
 import '../../core/constants/defaults.dart';
+import '../../core/utils/polygon_utils.dart';
+import '../../core/widgets/custom_button.dart';
+import '../../core/routing/routes.dart';
 import 'widgets/map_controls.dart';
+import './models/village_polygon.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   final String? initialSurveyNumber;
@@ -18,12 +24,19 @@ class MapScreen extends ConsumerStatefulWidget {
   final double? initialLatitude;
   final double? initialLongitude;
 
+  final String? district;
+  final String? taluka;
+  final String? village;
+
   const MapScreen({
     super.key,
     this.initialSurveyNumber,
     this.initialGisCode,
     this.initialLatitude,
     this.initialLongitude,
+    this.district,
+    this.taluka,
+    this.village,
   });
 
   @override
@@ -43,6 +56,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _isLoadingProperty = false;
   PropertyModel? _loadedProperty;
   String? _gisCode;
+  String? _district;
+  String? _taluka;
+  String? _village;
+  bool _isIdentifyingProperty = false;
+  bool _isSatellite = true;
+
+  double _currentZoom = 16.0;
 
   @override
   void initState() {
@@ -51,21 +71,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _userLocation = LatLng(widget.initialLatitude!, widget.initialLongitude!);
     }
     _gisCode = widget.initialGisCode;
+    _district = widget.district;
+    _taluka = widget.taluka;
+    _village = widget.village;
     _initUserLocationAndProperty();
   }
 
   Future<void> _initUserLocationAndProperty() async {
-    // Always show the current GPS marker.
+    // Always show current marker
     _updateUserLocationMarker(_userLocation);
 
-    // If we opened the map from "View on Map",
-    // DO NOT move to the user's location.
-    if (widget.initialSurveyNumber != null && widget.initialGisCode != null) {
-      await _fetchPropertyDetails();
+    // If a village GIS code is supplied, always load the village GeoJSON.
+    if (widget.initialGisCode != null) {
+      _gisCode = widget.initialGisCode;
+
+      await _loadVillageMap();
+
+      // If a survey is also supplied, highlight that survey.
+      if (widget.initialSurveyNumber != null) {
+        await _fetchPropertyDetails();
+      }
+
       return;
     }
 
-    // Otherwise this is a normal map screen.
+    // Standalone map
     await _locateMe(moveCamera: true);
   }
 
@@ -153,13 +183,92 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
 
     if (result is Success<Map<String, dynamic>>) {
+      final features = GeoJsonParser.parse(result.data);
+
       setState(() {
-        _villageFeatures = GeoJsonParser.parse(result.data);
+        _villageFeatures = features;
       });
 
       debugPrint(
-        "Village features loaded: ${_villageFeatures.length}",
+        "Village features loaded: ${features.length}",
       );
+
+      // Move camera to village
+      if (features.isNotEmpty) {
+        final List<LatLng> allPoints = [];
+
+        for (final feature in features) {
+          allPoints.addAll(feature.polygon.points);
+        }
+
+        _autoFitPolygon(allPoints);
+      }
+    }
+  }
+
+  Future<void> _identifyProperty(LatLng point) async {
+    if (_gisCode == null) return;
+
+    setState(() {
+      _isIdentifyingProperty = true;
+    });
+
+    try {
+      final repo = ref.read(propertyRepositoryProvider);
+
+      // First API
+      final identifyResult = await repo.identifyProperty(
+        _gisCode!,
+        point.latitude,
+        point.longitude,
+      );
+
+      if (identifyResult is! Success<PropertyIdentifyModel>) {
+        return;
+      }
+
+      final identified = identifyResult.data;
+
+      // 2. Find the corresponding GeoJSON polygon
+      final feature = _villageFeatures.firstWhere(
+        (f) => f.propertyId == identified.propertyId,
+      );
+
+      // Second API
+      final detailsResult = await repo.getPropertyDetails(
+        identified.propertyId,
+        gisCode: _gisCode!,
+        surveyNumber: identified.surveyNumber,
+      );
+
+      if (detailsResult is! Success<PropertyModel>) {
+        return;
+      }
+
+      final property = detailsResult.data;
+
+      if (mounted) {
+        setState(() {
+          _loadedProperty = property;
+        });
+      }
+
+      // Highlight the selected property polygon on the map
+      _selectVillageFeature(feature);
+
+      // Show the bottom sheet with property details
+      _showPropertyBottomSheet(
+        feature,
+        property,
+      );
+    } catch (e) {
+      debugPrint('Property identification failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isIdentifyingProperty = false;
+        });
+      }
     }
   }
 
@@ -214,19 +323,28 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             _polygons = [
               Polygon(
                 points: surveyPoints,
-                borderStrokeWidth: 2.0,
-                borderColor: AppColors.secondary.withValues(alpha: 0.6),
-                color: AppColors.secondary.withValues(alpha: 0.2),
+                borderStrokeWidth: 3.0,
+                borderColor: AppColors.secondary,
+                color: AppColors.secondary.withValues(alpha: 0.12),
               ),
             ];
 
             // Layer 3: Selected Polygon Highlight (Vibrant Amber Outline on top of WMS)
             _highlightedPolygons = [
+              // Outer glow
               Polygon(
                 points: surveyPoints,
-                borderStrokeWidth: 4.0,
+                borderStrokeWidth: 8.0,
+                borderColor: Colors.amberAccent.withValues(alpha: 0.35),
+                color: Colors.transparent,
+              ),
+
+              // Main selected boundary
+              Polygon(
+                points: surveyPoints,
+                borderStrokeWidth: 3.0,
                 borderColor: Colors.amberAccent,
-                color: Colors.amberAccent.withValues(alpha: 0.35),
+                color: Colors.amberAccent.withValues(alpha: 0.15),
               ),
             ];
 
@@ -235,7 +353,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
           // Automatically fit camera zoom to selected property
           _autoFitPolygon(surveyPoints);
-          await _loadVillageMap();
         }
       }
     } catch (_) {}
@@ -269,67 +386,192 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _selectedFeature = feature;
 
       _highlightedPolygons = [
+        // Outer glow
         Polygon(
           points: feature.polygon.points,
-          borderStrokeWidth: 4,
+          borderStrokeWidth: 8,
+          borderColor: Colors.amberAccent.withValues(alpha: 0.35),
+          color: Colors.transparent,
+        ),
+
+        // Main boundary
+        Polygon(
+          points: feature.polygon.points,
+          borderStrokeWidth: 3,
           borderColor: Colors.amberAccent,
-          color: Colors.amberAccent.withOpacity(0.35),
+          color: Colors.amberAccent.withValues(alpha: 0.18),
         ),
       ];
     });
 
     _autoFitPolygon(feature.polygon.points);
-
-    _showPropertyBottomSheet(feature);
   }
 
   void _showPropertyBottomSheet(
     VillagePolygon feature,
+    PropertyModel property,
   ) {
     showModalBottomSheet(
       context: context,
-      showDragHandle: true,
       isScrollControlled: true,
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Survey ${feature.surveyNumber}",
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.45,
+          minChildSize: 0.30,
+          maxChildSize: 0.90,
+          builder: (context, scrollController) {
+            return SafeArea(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(
+                  20,
+                  10,
+                  20,
+                  24,
                 ),
-                const SizedBox(height: 20),
-                _infoTile(
-                  "Property ID",
-                  feature.propertyId,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Survey ${feature.surveyNumber}",
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    _infoTile(
+                      "Property ID",
+                      feature.propertyId,
+                    ),
+
+                    _infoTile(
+                      "Plot ID",
+                      feature.plotId,
+                    ),
+
+                    _infoTile(
+                      "Area",
+                      "${feature.areaSqMeters.toStringAsFixed(2)} sq.m",
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Owner section
+                    const Text(
+                      "Registered Owners",
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    if (property.owners.isEmpty)
+                      _infoTile(
+                        "Owner",
+                        "No Data Found",
+                      )
+                    else
+                      ...property.owners.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final owner = entry.value;
+
+                        final ownerName = owner.fullName.trim().isEmpty
+                            ? "No Data Found"
+                            : owner.fullName;
+
+                        final khata = owner.khataNumber == null ||
+                                owner.khataNumber!.trim().isEmpty
+                            ? "No Data Found"
+                            : owner.khataNumber!;
+
+                        return Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.grey.withValues(alpha: 0.08),
+                            border: Border.all(
+                              color: Colors.grey.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              _infoTile(
+                                "Owner ${index + 1}",
+                                ownerName,
+                              ),
+                              _infoTile(
+                                "Khata",
+                                khata,
+                              ),
+                              _infoTile(
+                                "Ownership",
+                                "${owner.ownershipPercentage.toStringAsFixed(2)}%",
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+
+                    const SizedBox(height: 8),
+
+                    // Primary Khata
+                    _infoTile(
+                      "Khata",
+                      property.owners.isNotEmpty &&
+                              property.owners.first.khataNumber != null &&
+                              property.owners.first.khataNumber!
+                                  .trim()
+                                  .isNotEmpty
+                          ? property.owners.first.khataNumber!
+                          : "No Data Found",
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // View full details button
+                    SizedBox(
+                      width: double.infinity,
+                      child: CustomButton(
+                        text: "View Full Property Details",
+                        icon: Icons.arrow_forward_rounded,
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+
+                          context.push(
+                            Routes.propertySearchDetails,
+                            extra: {
+                              'property': property,
+                              'district':
+                                  _district ?? property.surveyDetails.district,
+                              'taluka':
+                                  _taluka ?? property.surveyDetails.taluka,
+                              'village':
+                                  _village ?? property.surveyDetails.village,
+                              'surveyNumber':
+                                  property.surveyDetails.surveyNumber,
+                              'gisCode': property.gisCode,
+                            },
+                          );
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+                  ],
                 ),
-                _infoTile(
-                  "Plot ID",
-                  feature.plotId,
-                ),
-                _infoTile(
-                  "Area",
-                  "${feature.areaSqMeters} sq.m",
-                ),
-                _infoTile(
-                  "Owner",
-                  feature.ownerName.isEmpty ? "-" : feature.ownerName,
-                ),
-                _infoTile(
-                  "Khata",
-                  feature.khataNumber.isEmpty ? "-" : feature.khataNumber,
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -349,8 +591,32 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     } catch (_) {}
   }
 
+  List<VillagePolygon> _visibleSurveyLabels() {
+    // Level 1: Zoomed out
+    // Hide all survey numbers.
+    if (_currentZoom < 15.5) {
+      return [];
+    }
+
+    // Level 2: Medium zoom
+    // Show only a limited number of survey numbers.
+    if (_currentZoom < 17.0) {
+      return _villageFeatures
+          .asMap()
+          .entries
+          .where((entry) => entry.key % 5 == 0)
+          .map((entry) => entry.value)
+          .toList();
+    }
+
+    // Level 3: Highly zoomed in
+    // Show all survey numbers.
+    return _villageFeatures;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final visibleSurveyLabels = _visibleSurveyLabels();
     return Scaffold(
       body: Stack(
         children: [
@@ -365,8 +631,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             options: MapOptions(
               initialCenter: _userLocation,
               initialZoom: 16.0,
-              // minZoom: 4.0,
-              // maxZoom: 19.0,
+              onPositionChanged: (position, hasGesture) {
+                final zoom = position.zoom;
+
+                if (zoom != _currentZoom) {
+                  setState(() {
+                    _currentZoom = zoom;
+                  });
+                }
+              },
+              onTap: (tapPosition, latLng) {
+                _identifyProperty(latLng);
+              },
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all,
               ),
@@ -374,28 +650,75 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             children: [
               // Base Property Polygons Layer
 
-              // 1. OpenStreetMap
+              // 1. Satellite / Real-world imagery
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: _isSatellite
+                    ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.geoproperty.intelligence',
+                tileProvider: NetworkTileProvider(),
+                maxZoom: 18,
               ),
 
               // 2. Village polygons
               if (_villageFeatures.isNotEmpty)
                 PolygonLayer(
-                  polygons: _villageFeatures
-                      .map((feature) => feature.polygon)
-                      .toList(),
+                  polygons: _villageFeatures.map((feature) {
+                    return Polygon(
+                      points: feature.polygon.points,
+                      color: Colors.white.withValues(alpha: 0.03),
+                      borderColor: Colors.yellowAccent.withValues(alpha: 0.85),
+                      borderStrokeWidth: 1,
+                    );
+                  }).toList(),
                 ),
 
-              // 3. Selected property
-              PolygonLayer(polygons: _polygons),
+              PolygonLayer(
+                polygons: _polygons,
+              ),
 
-              // 4. Highlight
+              // 3. Zoom-dependent Survey Number Labels
+
+              if (visibleSurveyLabels.isNotEmpty)
+                MarkerLayer(
+                  markers: visibleSurveyLabels.map((feature) {
+                    final center = PolygonUtils.centroid(
+                      feature.polygon.points,
+                    );
+
+                    return Marker(
+                      point: center,
+                      width: 50,
+                      height: 22,
+                      child: IgnorePointer(
+                        child: Container(
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 3,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            feature.surveyNumber,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              // 4. Highlight Polygon
               if (_highlightedPolygons.isNotEmpty)
                 PolygonLayer(polygons: _highlightedPolygons),
 
-              // 5. Markers
+              // 5. User Markers
               MarkerLayer(markers: _markers),
             ],
           ),
@@ -444,6 +767,77 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                     ),
                 ],
+              ),
+            ),
+          ),
+
+          Positioned(
+            right: 16,
+            bottom: 220,
+            child: FloatingActionButton.extended(
+              heroTag: 'mapStyleButton',
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  showDragHandle: true,
+                  builder: (context) {
+                    return SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Map Type',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            RadioListTile<bool>(
+                              value: false,
+                              groupValue: _isSatellite,
+                              title: const Text('Street Map'),
+                              secondary: const Icon(Icons.map_outlined),
+                              onChanged: (value) {
+                                if (value == null) return;
+
+                                setState(() {
+                                  _isSatellite = value;
+                                });
+
+                                Navigator.pop(context);
+                              },
+                            ),
+                            RadioListTile<bool>(
+                              value: true,
+                              groupValue: _isSatellite,
+                              title: const Text('Satellite'),
+                              secondary: const Icon(Icons.satellite_alt),
+                              onChanged: (value) {
+                                if (value == null) return;
+
+                                setState(() {
+                                  _isSatellite = value;
+                                });
+
+                                Navigator.pop(context);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+              icon: Icon(
+                _isSatellite ? Icons.satellite_alt : Icons.map_outlined,
+              ),
+              label: Text(
+                _isSatellite ? 'Satellite' : 'Street',
               ),
             ),
           ),

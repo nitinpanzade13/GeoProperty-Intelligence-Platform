@@ -1,4 +1,4 @@
-package com.example.property_radar
+package com.example.geopropertyintelligence
 
 import io.flutter.embedding.android.FlutterActivity
 

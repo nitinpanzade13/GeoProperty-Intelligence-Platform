@@ -58,9 +58,9 @@ class AppRouter {
               district: extra['district'] as String? ?? Defaults.district,
               taluka: extra['taluka'] as String? ?? Defaults.taluka,
               village: extra['village'] as String? ?? Defaults.village,
-              surveyNumber: extra['surveyNumber'] as String? ?? Defaults.surveyNumber,
-              gisCode:
-                  extra['gisCode'] as String? ?? Defaults.gisCode,
+              surveyNumber:
+                  extra['surveyNumber'] as String? ?? Defaults.surveyNumber,
+              gisCode: extra['gisCode'] as String? ?? Defaults.gisCode,
             );
           }
           return PropertySearchDetailsScreen(
@@ -77,7 +77,8 @@ class AppRouter {
                 village: Defaults.village,
                 areaSqMeters: Defaults.defaultAreaSqMeters,
                 landType: Defaults.landType,
-                location: LocationModel(latitude: Defaults.latitude, longitude: Defaults.longitude),
+                location: LocationModel(
+                    latitude: Defaults.latitude, longitude: Defaults.longitude),
               ),
               owners: [],
               totalAreaHectares: 0.45,
@@ -102,6 +103,9 @@ class AppRouter {
               initialGisCode: extraMap['gisCode'] as String?,
               initialLatitude: extraMap['latitude'] as double?,
               initialLongitude: extraMap['longitude'] as double?,
+              district: extraMap['district'] as String?,
+              taluka: extraMap['taluka'] as String?,
+              village: extraMap['village'] as String?,
             );
           }
           final surveyNum = state.extra as String?;

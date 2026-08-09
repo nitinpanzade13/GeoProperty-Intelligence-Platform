@@ -31,7 +31,7 @@ class AppConfig {
       host = 'localhost';
     } else {
       // Mobile devices on same Wi-Fi network use PC's LAN IP
-      host = '10.193.171.183';
+      host = '10.234.157.183';
     }
 
     return AppConfig(

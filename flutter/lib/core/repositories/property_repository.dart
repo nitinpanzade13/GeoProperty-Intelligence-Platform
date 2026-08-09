@@ -4,6 +4,7 @@ import '../models/survey_model.dart';
 import '../models/location_model.dart';
 import '../models/owner_model.dart';
 import '../models/polygon_model.dart';
+import '../models/property_identify_model.dart';
 import '../utils/result.dart';
 import '../constants/defaults.dart';
 
@@ -13,6 +14,11 @@ abstract class IPropertyRepository {
   Future<Result<Map<String, dynamic>>> getPropertyExtent(
       String gisCode, String surveyNumber);
   Future<Result<Map<String, dynamic>>> getVillageMap(String gisCode);
+  Future<Result<PropertyIdentifyModel>> identifyProperty(
+    String gisCode,
+    double latitude,
+    double longitude,
+  );
 }
 
 class PropertyRepository implements IPropertyRepository {
@@ -113,6 +119,27 @@ class PropertyRepository implements IPropertyRepository {
     } catch (e) {
       return Result.failure(
         "Failed to fetch village map",
+      );
+    }
+  }
+
+  @override
+  Future<Result<PropertyIdentifyModel>> identifyProperty(
+    String gisCode,
+    double latitude,
+    double longitude,
+  ) async {
+    try {
+      final property = await apiService.identifyProperty(
+        gisCode: gisCode,
+        latitude: latitude,
+        longitude: longitude,
+      );
+
+      return Result.success(property);
+    } catch (e) {
+      return Result.failure(
+        "Failed to identify property",
       );
     }
   }

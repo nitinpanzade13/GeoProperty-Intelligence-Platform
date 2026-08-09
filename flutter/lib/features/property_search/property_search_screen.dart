@@ -247,7 +247,7 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
       Routes.map,
       extra: {
         'gisCode': gisCode,
-        'villageName': _selectedVillageName,
+        'village': _selectedVillageName,
         'district': _selectedDistrictName,
         'taluka': _selectedTalukaName,
       },
@@ -269,8 +269,10 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
     final propertyRepo = ref.read(propertyRepositoryProvider);
     final gisCode = _resolvedGisCode ?? Defaults.gisCode;
 
-    final result = await propertyRepo.getPropertyDetails('${Defaults.surveyIdPrefix}$surveyNum',
-        gisCode: gisCode, surveyNumber: surveyNum);
+    final result = await propertyRepo.getPropertyDetails(
+        '${Defaults.surveyIdPrefix}$surveyNum',
+        gisCode: gisCode,
+        surveyNumber: surveyNum);
 
     if (mounted) {
       setState(() => _isSubmitting = false);
@@ -394,7 +396,8 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: _openVillageMapImmediate,
-                      icon: const Icon(Icons.map_rounded, color: AppColors.secondary),
+                      icon: const Icon(Icons.map_rounded,
+                          color: AppColors.secondary),
                       label: Text(
                         'View ${_selectedVillageName ?? "Village"} Map (WMS)',
                         style: const TextStyle(
@@ -403,8 +406,10 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.secondary, width: 1.5),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        side: const BorderSide(
+                            color: AppColors.secondary, width: 1.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
