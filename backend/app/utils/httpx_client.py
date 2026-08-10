@@ -15,7 +15,9 @@ class GISHttpClient:
             max_connections=settings.HTTP_POOL_LIMITS_MAX_CONNECTIONS,
         )
 
-        self._timeout = httpx.Timeout(settings.HTTP_TIMEOUT_SECONDS)
+        self._timeout = httpx.Timeout(
+            settings.HTTP_TIMEOUT_SECONDS
+        )
 
         self._headers = {
             "User-Agent": "GeoProperty-Intelligence-Platform/2.0",
@@ -32,6 +34,7 @@ class GISHttpClient:
                 headers=self._headers,
                 follow_redirects=True,
             )
+
         return self._client
 
     async def close(self):
@@ -54,12 +57,21 @@ class GISHttpClient:
 
         last_exception: Optional[Exception] = None
 
+        # Temporary HTTP errors that are safe to retry
+        retryable_status_codes = {
+            429,  # Too Many Requests
+            500,  # Internal Server Error
+            502,  # Bad Gateway
+            503,  # Service Unavailable
+            504,  # Gateway Timeout
+        }
+
         for attempt in range(1, retries + 1):
 
             try:
-
                 logger.info(
-                    f"HTTP {method} {url} - Attempt {attempt}/{retries}"
+                    f"HTTP {method} {url} - "
+                    f"Attempt {attempt}/{retries}"
                 )
 
                 response = await client.request(
@@ -71,9 +83,52 @@ class GISHttpClient:
                     headers=headers,
                 )
 
-                # IMPORTANT:
-                # Do NOT call response.raise_for_status().
-                # The caller decides how to handle HTTP 4xx/5xx responses.
+                # --------------------------------------------------
+                # Handle temporary HTTP failures
+                # --------------------------------------------------
+
+                if response.status_code in retryable_status_codes:
+
+                    if attempt < retries:
+
+                        # Exponential backoff:
+                        #
+                        # Attempt 1 -> wait 1 second
+                        # Attempt 2 -> wait 2 seconds
+                        # Attempt 3 -> wait 4 seconds
+                        #
+                        # Maximum wait is capped at 10 seconds.
+                        delay = min(
+                            2 ** (attempt - 1),
+                            10,
+                        )
+
+                        logger.warning(
+                            f"HTTP {response.status_code} from "
+                            f"external GIS service. "
+                            f"Retrying in {delay}s "
+                            f"(attempt {attempt}/{retries})"
+                        )
+
+                        await asyncio.sleep(delay)
+
+                        continue
+
+                    # Last attempt failed.
+                    logger.error(
+                        f"HTTP {response.status_code} from "
+                        f"external GIS service after "
+                        f"{retries} attempts: {url}"
+                    )
+
+                    # Return the response so the caller can
+                    # decide how to handle the final HTTP error.
+                    return response
+
+                # --------------------------------------------------
+                # Successful or non-retryable HTTP response
+                # --------------------------------------------------
+
                 return response
 
             except (
@@ -83,13 +138,25 @@ class GISHttpClient:
             ) as exc:
 
                 logger.warning(
-                    f"HTTP request failed on attempt {attempt}: {exc}"
+                    f"HTTP request failed on attempt "
+                    f"{attempt}/{retries}: {exc}"
                 )
 
                 last_exception = exc
 
                 if attempt < retries:
-                    await asyncio.sleep(0.5 * attempt)
+
+                    delay = min(
+                        2 ** (attempt - 1),
+                        10,
+                    )
+
+                    logger.info(
+                        f"Retrying network request in "
+                        f"{delay}s..."
+                    )
+
+                    await asyncio.sleep(delay)
 
         raise ExternalServiceException(
             detail=(
@@ -99,4 +166,5 @@ class GISHttpClient:
         )
 
 
+# Shared HTTP client instance
 gis_http_client = GISHttpClient()

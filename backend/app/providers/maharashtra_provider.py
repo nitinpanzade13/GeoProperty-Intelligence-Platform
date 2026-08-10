@@ -201,8 +201,8 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
                 detail=f"Invalid village_code '{village_code}'. Must be an 18-digit numeric string conforming to BhuNaksha GIS specifications."
             )
 
-        district_str = clean_vcode[2:4]
-        taluka_str = clean_vcode[6:8]
+        district_str = str(district_code).strip().zfill(2)
+        taluka_str = str(taluka_code).strip().zfill(2)
 
         gis_code = f"RVM{district_str}{taluka_str}{clean_vcode}"
         logger.info(f"Constructed verified BhuNaksha GIS code: {gis_code}")

@@ -18,6 +18,9 @@ from app.repositories.cache.village_cache_repository import VillageCacheReposito
 from app.repositories.cache.village_map_cache_repository import (
     VillageMapCacheRepository,
 )
+from app.repositories.cache.property_cache_repository import (
+    PropertyCacheRepository,
+)
 
 # Services
 from app.services.location_service import LocationService
@@ -27,6 +30,7 @@ from app.services.property_service import PropertyService
 from app.services.map_service import MapService
 from app.services.village_map_service import VillageMapService
 from app.services.profile_service import ProfileService
+from app.services.admin_sync_service import AdminSyncService
 
 
 from app.repositories.property_identify_repository import (
@@ -95,6 +99,9 @@ def get_village_cache_repository() -> VillageCacheRepository:
 def get_village_map_cache_repository() -> VillageMapCacheRepository:
     return VillageMapCacheRepository()
 
+def get_property_cache_repository() -> PropertyCacheRepository:
+    return PropertyCacheRepository()
+
 
 # ---------------------------------------------------------------------
 # Services
@@ -133,8 +140,9 @@ def get_map_service() -> MapService:
 
 def get_village_map_service() -> VillageMapService:
     return VillageMapService(
-        repository=get_village_map_repository(),
-        cache_repository=get_village_map_cache_repository(),
+        repository = get_village_map_repository(),
+        cache_repository = get_village_map_cache_repository(),
+        property_cache_repository = get_property_cache_repository(),
     )
 
 
@@ -150,4 +158,8 @@ def get_property_identify_service() -> PropertyIdentifyService:
         ),
     )
 
-    
+def get_admin_sync_service() -> AdminSyncService:
+    return AdminSyncService(
+        village_service=get_village_service(),
+        village_map_service=get_village_map_service(),
+    )

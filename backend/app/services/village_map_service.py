@@ -7,6 +7,9 @@ from app.repositories.village_map_repository import VillageMapRepository
 from app.repositories.cache.village_map_cache_repository import (
     VillageMapCacheRepository,
 )
+from app.repositories.cache.property_cache_repository import (
+    PropertyCacheRepository,
+)
 
 from app.core.logging import logger
 from app.core.config import settings
@@ -42,9 +45,11 @@ class VillageMapService:
         self,
         repository: VillageMapRepository,
         cache_repository: VillageMapCacheRepository,
+        property_cache_repository: PropertyCacheRepository,
     ):
         self.repository = repository
         self.cache_repository = cache_repository
+        self.property_cache_repository = property_cache_repository
 
     async def get_complete_village_map(
         self,
@@ -130,28 +135,61 @@ class VillageMapService:
         gis_code: str,
     ) -> Dict[str, Any]:
 
-        properties = await self.repository.fetch_complete_village(
-            gis_code
-        )
+            # ---------------------------------------------------------
+            # 1. Download all survey/property information
+            # ---------------------------------------------------------
 
-        geojson = GeoJsonBuilder.build(
-            gis_code=gis_code,
-            properties=properties,
-        )
+            properties = await self.repository.fetch_complete_village(
+                gis_code
+            )
 
-        self.cache_repository.upsert_village_map(
-            gis_code=gis_code,
-            geojson=geojson,
-            survey_count=geojson["total_surveys"],
-        )
+            logger.info(
+                "Fetched %s properties for village %s",
+                len(properties),
+                gis_code,
+            )
 
-        logger.info(
-            "Village %s cached into PostgreSQL",
-            gis_code,
-        )
+            # ---------------------------------------------------------
+            # 2. Save property + owner data
+            # ---------------------------------------------------------
 
-        return geojson
+            saved_count = (
+                self.property_cache_repository.upsert_properties(
+                    properties
+                )
+            )
 
+            logger.info(
+                "Saved %s properties into PostgreSQL for village %s",
+                saved_count,
+                gis_code,
+            )
+
+            # ---------------------------------------------------------
+            # 3. Build GeoJSON
+            # ---------------------------------------------------------
+
+            geojson = GeoJsonBuilder.build(
+                gis_code=gis_code,
+                properties=properties,
+            )
+
+            # ---------------------------------------------------------
+            # 4. Save village GeoJSON cache
+            # ---------------------------------------------------------
+
+            self.cache_repository.upsert_village_map(
+                gis_code=gis_code,
+                geojson=geojson,
+                survey_count=geojson["total_surveys"],
+            )
+
+            logger.info(
+                "Village %s cached into PostgreSQL",
+                gis_code,
+            )
+
+            return geojson
     # ---------------------------------------------------------
     # Background refresh
     # ---------------------------------------------------------

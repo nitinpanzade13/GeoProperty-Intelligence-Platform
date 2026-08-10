@@ -13,6 +13,7 @@ from app.schemas.response_wrapper import APIResponse
 # ---------- SQLAlchemy ----------
 from app.database.base import Base
 from app.database.session import engine
+from app.database import models
 
 # Import all models here
 # -------------------------------
