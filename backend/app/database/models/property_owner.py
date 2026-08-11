@@ -1,9 +1,29 @@
-from sqlalchemy import Column, String, Float, Integer, ForeignKey, Text
+from sqlalchemy import (
+    Column,
+    String,
+    Float,
+    Integer,
+    ForeignKey,
+    Text,
+    UniqueConstraint,
+)
+
 from app.database.base import Base
 
 
 class PropertyOwner(Base):
     __tablename__ = "property_owners"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "property_id",
+            "owner_name",
+            "khata_number",
+            "area_share_sq_meters",
+            "ownership_percentage",
+            name="uq_property_owner_record",
+        ),
+    )
 
     id = Column(
         Integer,

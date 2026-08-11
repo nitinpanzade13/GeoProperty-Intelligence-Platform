@@ -13,9 +13,11 @@ class AdminSyncService:
         self,
         village_service: VillageService,
         village_map_service: VillageMapService,
+        village_map_cache_repository,
     ):
         self.village_service = village_service
         self.village_map_service = village_map_service
+        self.village_map_cache_repository = village_map_cache_repository
 
     async def sync_district(
         self,
@@ -44,6 +46,7 @@ class AdminSyncService:
         )
 
         total_villages = 0
+        skipped_villages = 0
         successful_villages = 0
         failed_villages = []
 
@@ -61,10 +64,6 @@ class AdminSyncService:
 
             # --------------------------------------------------
             # 3. Get villages
-            #
-            # IMPORTANT:
-            # VillageService saves villages into PostgreSQL
-            # before returning them when needed.
             # --------------------------------------------------
 
             villages = await self.village_service.get_villages(
@@ -81,7 +80,76 @@ class AdminSyncService:
             )
 
             # --------------------------------------------------
-            # 4. Process villages with controlled concurrency
+            # 4. Filter already completed villages
+            #
+            # If village exists in village_map_cache,
+            # consider it successfully synced.
+            # --------------------------------------------------
+
+            pending_villages = []
+
+            for village in villages:
+
+                try:
+
+                    cached = (
+                        self.village_map_cache_repository
+                        .get_village_map(village.gis_code)
+                    )
+
+                    if cached:
+
+                        skipped_villages += 1
+
+                        logger.info(
+                            "Skipping already synced village: "
+                            "%s (%s)",
+                            village.village_name,
+                            village.gis_code,
+                        )
+
+                        continue
+
+                    pending_villages.append(village)
+
+                except Exception as exc:
+
+                    # If cache lookup itself fails,
+                    # don't silently skip the village.
+                    # Add it to pending so it can be processed.
+                    logger.warning(
+                        "Cache check failed for village %s: %s. "
+                        "Processing village anyway.",
+                        village.gis_code,
+                        exc,
+                    )
+
+                    pending_villages.append(village)
+
+            logger.info(
+                "Taluka %s: total=%s, already_synced=%s, pending=%s",
+                taluka.taluka_code,
+                len(villages),
+                len(villages) - len(pending_villages),
+                len(pending_villages),
+            )
+
+            # --------------------------------------------------
+            # Nothing to process for this taluka
+            # --------------------------------------------------
+
+            if not pending_villages:
+
+                logger.info(
+                    "Taluka %s already completely synced.",
+                    taluka.taluka_code,
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # 5. Process pending villages with controlled
+            #    concurrency
             # --------------------------------------------------
 
             semaphore = asyncio.Semaphore(3)
@@ -105,9 +173,13 @@ class AdminSyncService:
                         )
 
                         logger.info(
-                            "Village %s synced successfully: %s properties",
+                            "Village %s synced successfully: "
+                            "%s properties",
                             village.gis_code,
-                            geojson.get("total_surveys", 0),
+                            geojson.get(
+                                "total_surveys",
+                                0,
+                            ),
                         )
 
                         return {
@@ -134,38 +206,64 @@ class AdminSyncService:
                             "error": str(exc),
                         }
 
+            # --------------------------------------------------
+            # 6. Run pending villages
+            # --------------------------------------------------
+
             results = await asyncio.gather(
                 *[
                     sync_village(village)
-                    for village in villages
+                    for village in pending_villages
                 ]
             )
+
+            # --------------------------------------------------
+            # 7. Process results
+            # --------------------------------------------------
 
             for result in results:
 
                 if result["success"]:
+
                     successful_villages += 1
+
                 else:
+
                     failed_villages.append(result)
 
         # --------------------------------------------------
-        # 5. Final result
+        # 8. Final result
         # --------------------------------------------------
 
         duration = time.perf_counter() - start
 
         logger.info(
-            "ADMIN SYNC COMPLETED: district=%s duration=%.2fs",
+            "ADMIN SYNC COMPLETED: district=%s "
+            "duration=%.2fs "
+            "total=%s "
+            "skipped=%s "
+            "successful=%s "
+            "failed=%s",
             district_code,
             duration,
+            total_villages,
+            skipped_villages,
+            successful_villages,
+            len(failed_villages),
         )
 
         return {
             "district_code": district_code,
             "total_talukas": len(talukas),
             "total_villages": total_villages,
+            "skipped_villages": skipped_villages,
             "successful_villages": successful_villages,
             "failed_villages": len(failed_villages),
+            "pending_villages": (
+                total_villages
+                - skipped_villages
+                - successful_villages
+            ),
             "failures": failed_villages,
             "duration_seconds": round(duration, 2),
         }

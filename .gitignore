@@ -78,3 +78,9 @@ Thumbs.db
 # =========================
 *.egg-info/
 dist/
+
+
+# Data/cache
+*.faiss
+*.pkl
+*.pickle

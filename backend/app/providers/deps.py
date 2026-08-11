@@ -12,9 +12,15 @@ from app.repositories.village_map_repository import VillageMapRepository
 from app.repositories.mock_repository import mock_repository
 
 # Cache repositories
-from app.repositories.cache.district_cache_repository import DistrictCacheRepository
-from app.repositories.cache.taluka_cache_repository import TalukaCacheRepository
-from app.repositories.cache.village_cache_repository import VillageCacheRepository
+from app.repositories.cache.district_cache_repository import (
+    DistrictCacheRepository,
+)
+from app.repositories.cache.taluka_cache_repository import (
+    TalukaCacheRepository,
+)
+from app.repositories.cache.village_cache_repository import (
+    VillageCacheRepository,
+)
 from app.repositories.cache.village_map_cache_repository import (
     VillageMapCacheRepository,
 )
@@ -31,7 +37,6 @@ from app.services.map_service import MapService
 from app.services.village_map_service import VillageMapService
 from app.services.profile_service import ProfileService
 from app.services.admin_sync_service import AdminSyncService
-
 
 from app.repositories.property_identify_repository import (
     PropertyIdentifyRepository,
@@ -58,19 +63,27 @@ def get_land_records_provider() -> LandRecordsProvider:
 # ---------------------------------------------------------------------
 
 def get_village_repository() -> VillageRepository:
-    return VillageRepository(provider=_provider_instance)
+    return VillageRepository(
+        provider=_provider_instance
+    )
 
 
 def get_survey_repository() -> SurveyRepository:
-    return SurveyRepository(provider=_provider_instance)
+    return SurveyRepository(
+        provider=_provider_instance
+    )
 
 
 def get_property_repository() -> PropertyRepository:
-    return PropertyRepository(provider=_provider_instance)
+    return PropertyRepository(
+        provider=_provider_instance
+    )
 
 
 def get_map_repository() -> MapRepository:
-    return MapRepository(provider=_provider_instance)
+    return MapRepository(
+        provider=_provider_instance
+    )
 
 
 def get_village_map_repository() -> VillageMapRepository:
@@ -98,6 +111,7 @@ def get_village_cache_repository() -> VillageCacheRepository:
 
 def get_village_map_cache_repository() -> VillageMapCacheRepository:
     return VillageMapCacheRepository()
+
 
 def get_property_cache_repository() -> PropertyCacheRepository:
     return PropertyCacheRepository()
@@ -140,9 +154,9 @@ def get_map_service() -> MapService:
 
 def get_village_map_service() -> VillageMapService:
     return VillageMapService(
-        repository = get_village_map_repository(),
-        cache_repository = get_village_map_cache_repository(),
-        property_cache_repository = get_property_cache_repository(),
+        repository=get_village_map_repository(),
+        cache_repository=get_village_map_cache_repository(),
+        property_cache_repository=get_property_cache_repository(),
     )
 
 
@@ -151,6 +165,7 @@ def get_profile_service() -> ProfileService:
         repository=mock_repository,
     )
 
+
 def get_property_identify_service() -> PropertyIdentifyService:
     return PropertyIdentifyService(
         repository=PropertyIdentifyRepository(
@@ -158,8 +173,14 @@ def get_property_identify_service() -> PropertyIdentifyService:
         ),
     )
 
+
+# ---------------------------------------------------------------------
+# Admin Sync Service
+# ---------------------------------------------------------------------
+
 def get_admin_sync_service() -> AdminSyncService:
     return AdminSyncService(
         village_service=get_village_service(),
         village_map_service=get_village_map_service(),
+        village_map_cache_repository=get_village_map_cache_repository(),
     )

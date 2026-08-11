@@ -76,7 +76,9 @@ class PropertyCacheRepository:
                 if db_property:
 
                     db_property.gis_code = property_data.gis_code
-                    db_property.survey_number = property_data.survey_number
+                    db_property.survey_number = (
+                        property_data.survey_number
+                    )
                     db_property.plot_id = property_data.plot_id
                     db_property.area_sq_meters = (
                         property_data.area_sq_meters
@@ -103,7 +105,7 @@ class PropertyCacheRepository:
                     self.db.add(db_property)
 
                 # -------------------------------------------------
-                # Replace owners
+                # Replace existing owners
                 # -------------------------------------------------
 
                 self.db.query(PropertyOwner).filter(
@@ -112,7 +114,29 @@ class PropertyCacheRepository:
                     synchronize_session=False
                 )
 
+                # -------------------------------------------------
+                # Deduplicate owners returned by remote API
+                #
+                # Same owner is considered duplicate when all
+                # fields used by the DB unique constraint are same.
+                # -------------------------------------------------
+
+                unique_owners = set()
+
                 for owner in property_data.owners:
+
+                    owner_key = (
+                        property_id,
+                        owner.owner_name,
+                        owner.khata_number,
+                        owner.area_share_sq_meters,
+                        owner.ownership_percentage,
+                    )
+
+                    if owner_key in unique_owners:
+                        continue
+
+                    unique_owners.add(owner_key)
 
                     db_owner = PropertyOwner(
                         property_id=property_id,
@@ -129,6 +153,10 @@ class PropertyCacheRepository:
                     self.db.add(db_owner)
 
                 saved_count += 1
+
+            # -------------------------------------------------
+            # Commit everything
+            # -------------------------------------------------
 
             self.db.commit()
 
