@@ -152,7 +152,7 @@ class AdminSyncService:
             #    concurrency
             # --------------------------------------------------
 
-            semaphore = asyncio.Semaphore(3)
+            semaphore = asyncio.Semaphore(10)
 
             async def sync_village(village):
 

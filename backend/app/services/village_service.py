@@ -149,7 +149,8 @@ class VillageService:
         # 1. Try PostgreSQL cache
         # ----------------------------------
         cached_villages = self.village_cache_repository.get_by_taluka(
-            taluka_code
+            district_code = district_code,
+            taluka_code = taluka_code
         )
 
         if cached_villages:
@@ -187,6 +188,7 @@ class VillageService:
                     gis_code=v.gis_code,
                     village_code=v.village_code,
                     village_name=v.village_name,
+                    district_code=district_code,
                     taluka_code=v.taluka_code,
                 )
                 for v in villages

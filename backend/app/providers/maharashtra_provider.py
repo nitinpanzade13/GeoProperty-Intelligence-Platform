@@ -171,6 +171,7 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
                     Village(
                         village_code=v_code,
                         village_name=v_name,
+                        district_code=district_code,
                         taluka_code=taluka_code,
                         gis_code=gis_c,
                     )

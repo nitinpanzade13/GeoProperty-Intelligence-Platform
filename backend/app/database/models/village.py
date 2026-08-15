@@ -23,6 +23,16 @@ class Village(Base):
         nullable=False,
     )
 
+    district_code = Column(
+        String(20),
+        ForeignKey(
+            "districts.district_code",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
     taluka_code = Column(
         String(20),
         ForeignKey(
@@ -30,6 +40,7 @@ class Village(Base):
             ondelete="CASCADE",
         ),
         nullable=False,
+        index=True,
     )
 
     created_at = Column(

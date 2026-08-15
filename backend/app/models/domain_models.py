@@ -20,6 +20,7 @@ class Taluka:
 class Village:
     village_code: str
     village_name: str
+    district_code: str
     taluka_code: str
     gis_code: Optional[str] = None
 
