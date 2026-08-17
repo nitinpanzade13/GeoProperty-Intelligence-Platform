@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     DATABASE_URL: str
 
     # ============================================================
+    # Admin Authentication
+    # ============================================================
+
+    ADMIN_EMAIL: str
+    ADMIN_PASSWORD_HASH: str
+    JWT_SECRET_KEY: str
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # ============================================================
     # CORS Configuration
     # ============================================================
 
@@ -115,6 +124,8 @@ class Settings(BaseSettings):
     MH_BHUNAKSHA_BASE_URL: str = (
         "https://mahabhunakasha.mahabhumi.gov.in/bhunaksha/services"
     )
+
+
 
     class Config:
         case_sensitive = True

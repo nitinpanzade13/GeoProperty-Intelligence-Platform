@@ -16,6 +16,8 @@ import '../../core/models/property_model.dart';
 import '../../core/models/survey_model.dart';
 import '../../core/models/location_model.dart';
 import '../../core/constants/defaults.dart';
+import '../../features/admin/admin_login_screen.dart';
+import '../../features/admin/admin_dashboard_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -127,6 +129,14 @@ class AppRouter {
       GoRoute(
         path: Routes.favorites,
         builder: (context, state) => const FavoritesScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminLogin,
+        builder: (context, state) => const AdminLoginScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminDashboard,
+        builder: (context, state) => const AdminDashboardScreen(),
       ),
     ],
   );

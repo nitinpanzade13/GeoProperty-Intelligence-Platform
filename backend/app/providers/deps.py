@@ -10,6 +10,9 @@ from app.repositories.remote.map_repository import MapRepository
 # Business repositories
 from app.repositories.village_map_repository import VillageMapRepository
 from app.repositories.mock_repository import mock_repository
+from app.repositories.admin_dashboard_repository import (
+    AdminDashboardRepository,
+)
 
 # Cache repositories
 from app.repositories.cache.district_cache_repository import (
@@ -44,6 +47,10 @@ from app.repositories.property_identify_repository import (
 
 from app.services.property_identify_service import (
     PropertyIdentifyService,
+)
+
+from app.services.admin_dashboard_service import (
+    AdminDashboardService,
 )
 
 
@@ -183,4 +190,13 @@ def get_admin_sync_service() -> AdminSyncService:
         village_service=get_village_service(),
         village_map_service=get_village_map_service(),
         village_map_cache_repository=get_village_map_cache_repository(),
+    )
+
+# ---------------------------------------------------------------------
+# Admin Dashboard Service
+# ---------------------------------------------------------------------
+
+def get_admin_dashboard_service() -> AdminDashboardService:
+    return AdminDashboardService(
+        repository=AdminDashboardRepository(),
     )

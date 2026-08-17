@@ -53,3 +53,8 @@ redis>=5.0.4
 # Celery for background tasks
 # ----------------------------
 celery>=5.4.0
+
+# ----------------------------
+# Email Validation 
+# ----------------------------
+pip install email-validator

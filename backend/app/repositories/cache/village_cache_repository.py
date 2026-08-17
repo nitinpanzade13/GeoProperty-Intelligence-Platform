@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from app.database.models.village import Village
 from app.repositories.cache.base_cache_repository import BaseCacheRepository
@@ -8,6 +8,18 @@ class VillageCacheRepository(BaseCacheRepository[Village]):
 
     def __init__(self):
         super().__init__(Village)
+
+    def get_by_gis_code(
+        self,
+        gis_code: str,
+    ) -> Optional[Village]:
+        return (
+            self.db.query(Village)
+            .filter(
+                Village.gis_code == gis_code,
+            )
+            .first()
+        )
 
     def get_by_taluka(
         self,

@@ -12,6 +12,7 @@ import '../repositories/village_repository.dart';
 import '../repositories/survey_repository.dart';
 import '../repositories/property_repository.dart';
 import '../repositories/user_repository.dart';
+import '../../features/admin/admin_api_service.dart';
 
 final getIt = GetIt.instance;
 
@@ -31,7 +32,8 @@ Future<void> setupDependencyInjection({String? customIp}) async {
 
   // ApiClient & Device Services
   if (!getIt.isRegistered<ApiClient>()) {
-    getIt.registerLazySingleton<ApiClient>(() => ApiClient(config: getIt<AppConfig>()));
+    getIt.registerLazySingleton<ApiClient>(
+        () => ApiClient(config: getIt<AppConfig>()));
   }
   if (!getIt.isRegistered<LocationService>()) {
     getIt.registerLazySingleton<LocationService>(() => LocationService());
@@ -89,6 +91,14 @@ Future<void> setupDependencyInjection({String? customIp}) async {
   if (!getIt.isRegistered<IUserRepository>()) {
     getIt.registerLazySingleton<IUserRepository>(
       () => UserRepository(apiClient: getIt<ApiClient>()),
+    );
+  }
+
+  if (!getIt.isRegistered<AdminApiService>()) {
+    getIt.registerLazySingleton<AdminApiService>(
+      () => AdminApiService(
+        apiClient: getIt<ApiClient>(),
+      ),
     );
   }
 }

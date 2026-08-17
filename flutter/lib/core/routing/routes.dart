@@ -11,4 +11,6 @@ class Routes {
   static const String settings = '/settings';
   static const String search = '/search';
   static const String favorites = '/favorites';
+  static const String adminLogin = '/admin/login';
+  static const String adminDashboard = '/admin/dashboard';
 }
