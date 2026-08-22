@@ -57,4 +57,4 @@ celery>=5.4.0
 # ----------------------------
 # Email Validation 
 # ----------------------------
-pip install email-validator
+email-validator
