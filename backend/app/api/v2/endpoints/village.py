@@ -28,6 +28,10 @@ from app.providers.deps import (
 router = APIRouter()
 
 
+# =========================================================
+# DISTRICTS
+# =========================================================
+
 @router.get(
     "/village/districts",
     response_model=APIResponse[List[DistrictSchema]],
@@ -36,6 +40,7 @@ async def get_districts(
     service: VillageService = Depends(get_village_service),
 ):
     """Retrieve list of state administrative districts."""
+
     districts = await service.get_districts()
 
     return APIResponse.ok(
@@ -43,6 +48,10 @@ async def get_districts(
         message="Districts fetched successfully",
     )
 
+
+# =========================================================
+# TALUKAS
+# =========================================================
 
 @router.get(
     "/village/talukas",
@@ -56,13 +65,20 @@ async def get_talukas(
     service: VillageService = Depends(get_village_service),
 ):
     """Retrieve list of talukas."""
-    talukas = await service.get_talukas(district_code)
+
+    talukas = await service.get_talukas(
+        district_code
+    )
 
     return APIResponse.ok(
         data=talukas,
         message="Talukas fetched successfully",
     )
 
+
+# =========================================================
+# VILLAGES
+# =========================================================
 
 @router.get(
     "/village/list",
@@ -80,6 +96,7 @@ async def get_villages(
     service: VillageService = Depends(get_village_service),
 ):
     """Retrieve villages."""
+
     villages = await service.get_villages(
         district_code,
         taluka_code,
@@ -90,6 +107,10 @@ async def get_villages(
         message="Villages fetched successfully",
     )
 
+
+# =========================================================
+# GIS CODE
+# =========================================================
 
 @router.post(
     "/village/giscode",
@@ -113,6 +134,10 @@ async def resolve_village_gis_code(
     )
 
 
+# =========================================================
+# VILLAGE FULL MAP
+# =========================================================
+
 @router.get("/village/full-map")
 async def get_complete_village_map(
     gis_code: str = Query(
@@ -124,18 +149,51 @@ async def get_complete_village_map(
     ),
 ):
     """
-    Returns the complete village GeoJSON.
+    Returns the village GeoJSON from PostgreSQL cache.
+
+    IMPORTANT:
+    This is a USER endpoint.
+
+    It must NEVER trigger BhuNaksha.
+
+    If the village has not been synced by an admin,
+    the endpoint returns a failure response.
     """
 
     result = await service.get_complete_village_map(
         gis_code,
     )
 
+    # -----------------------------------------------------
+    # Village not available in PostgreSQL
+    #
+    # DO NOT fetch from BhuNaksha.
+    # Admin must sync the village first.
+    # -----------------------------------------------------
+
+    if result is None:
+
+        return APIResponse.fail(
+            message=(
+                "Village data is not available yet. "
+                "Please ask an administrator to sync "
+                "this village."
+            ),
+        )
+
+    # -----------------------------------------------------
+    # PostgreSQL cache hit
+    # -----------------------------------------------------
+
     return APIResponse.ok(
         data=result,
-        message="Village map generated successfully",
+        message="Village map loaded successfully",
     )
 
+
+# =========================================================
+# PROPERTY IDENTIFICATION
+# =========================================================
 
 @router.get(
     "/village/identify",
@@ -159,8 +217,10 @@ async def identify_property(
     ),
 ):
     """
-    Identify the property containing
-    the given coordinate.
+    Identify the property containing the given coordinate.
+
+    This operation uses the PostgreSQL cached village GeoJSON.
+    It does not fetch data from BhuNaksha.
     """
 
     result = service.identify_property(
@@ -170,11 +230,12 @@ async def identify_property(
     )
 
     if result is None:
+
         return APIResponse.fail(
             message="No property found at this location.",
         )
 
     return APIResponse.ok(
         data=result.model_dump(),
-        message="Property identified successfully.",
+        message="Property identified successfully",
     )

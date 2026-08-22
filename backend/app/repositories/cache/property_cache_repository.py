@@ -16,6 +16,13 @@ class PropertyCacheRepository:
     def close(self):
         self.db.close()
 
+    def count_by_gis_code(self, gis_code: str) -> int:
+        return (
+            self.db.query(Property)
+            .filter(Property.gis_code == gis_code)
+            .count()
+        )
+
     def upsert_properties(
         self,
         properties: List[Dict[str, Any]],

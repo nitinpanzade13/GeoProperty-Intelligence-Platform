@@ -1,20 +1,45 @@
 from app.providers.base_provider import LandRecordsProvider
 from app.providers.maharashtra_provider import MaharashtraLandRecordsProvider
 
-# Remote repositories
-from app.repositories.remote.village_repository import VillageRepository
-from app.repositories.remote.survey_repository import SurveyRepository
-from app.repositories.remote.property_repository import PropertyRepository
-from app.repositories.remote.map_repository import MapRepository
 
-# Business repositories
-from app.repositories.village_map_repository import VillageMapRepository
+# ============================================================
+# REMOTE REPOSITORIES
+# ============================================================
+
+from app.repositories.remote.village_repository import (
+    VillageRepository,
+)
+from app.repositories.remote.survey_repository import (
+    SurveyRepository,
+)
+from app.repositories.remote.property_repository import (
+    PropertyRepository,
+)
+from app.repositories.remote.map_repository import (
+    MapRepository,
+)
+
+
+# ============================================================
+# BUSINESS REPOSITORIES
+# ============================================================
+
+from app.repositories.village_map_repository import (
+    VillageMapRepository,
+)
 from app.repositories.mock_repository import mock_repository
 from app.repositories.admin_dashboard_repository import (
     AdminDashboardRepository,
 )
+from app.repositories.property_identify_repository import (
+    PropertyIdentifyRepository,
+)
 
-# Cache repositories
+
+# ============================================================
+# CACHE REPOSITORIES
+# ============================================================
+
 from app.repositories.cache.district_cache_repository import (
     DistrictCacheRepository,
 )
@@ -31,7 +56,11 @@ from app.repositories.cache.property_cache_repository import (
     PropertyCacheRepository,
 )
 
-# Services
+
+# ============================================================
+# SERVICES
+# ============================================================
+
 from app.services.location_service import LocationService
 from app.services.village_service import VillageService
 from app.services.survey_service import SurveyService
@@ -39,35 +68,31 @@ from app.services.property_service import PropertyService
 from app.services.map_service import MapService
 from app.services.village_map_service import VillageMapService
 from app.services.profile_service import ProfileService
-from app.services.admin_sync_service import AdminSyncService
-
-from app.repositories.property_identify_repository import (
-    PropertyIdentifyRepository,
-)
-
 from app.services.property_identify_service import (
     PropertyIdentifyService,
 )
-
+from app.services.admin_sync_service import AdminSyncService
 from app.services.admin_dashboard_service import (
     AdminDashboardService,
 )
 
 
-# ---------------------------------------------------------------------
-# Singleton Provider
-# ---------------------------------------------------------------------
+# ============================================================
+# SINGLETON PROVIDER
+# ============================================================
 
-_provider_instance: LandRecordsProvider = MaharashtraLandRecordsProvider()
+_provider_instance: LandRecordsProvider = (
+    MaharashtraLandRecordsProvider()
+)
 
 
 def get_land_records_provider() -> LandRecordsProvider:
     return _provider_instance
 
 
-# ---------------------------------------------------------------------
-# Remote Repositories
-# ---------------------------------------------------------------------
+# ============================================================
+# REMOTE REPOSITORIES
+# ============================================================
 
 def get_village_repository() -> VillageRepository:
     return VillageRepository(
@@ -100,9 +125,9 @@ def get_village_map_repository() -> VillageMapRepository:
     )
 
 
-# ---------------------------------------------------------------------
-# Cache Repositories
-# ---------------------------------------------------------------------
+# ============================================================
+# CACHE REPOSITORIES
+# ============================================================
 
 def get_district_cache_repository() -> DistrictCacheRepository:
     return DistrictCacheRepository()
@@ -124,20 +149,35 @@ def get_property_cache_repository() -> PropertyCacheRepository:
     return PropertyCacheRepository()
 
 
-# ---------------------------------------------------------------------
-# Services
-# ---------------------------------------------------------------------
+# ============================================================
+# NORMAL APPLICATION SERVICES
+# ============================================================
 
 def get_location_service() -> LocationService:
     return LocationService()
 
 
 def get_village_service() -> VillageService:
+    """
+    Normal user location service.
+
+    IMPORTANT:
+    This service is PostgreSQL/cache ONLY.
+
+    It does NOT receive VillageRepository.
+    Therefore it cannot directly call BhuNaksha.
+    """
+
     return VillageService(
-        repository=get_village_repository(),
-        district_cache_repository=get_district_cache_repository(),
-        taluka_cache_repository=get_taluka_cache_repository(),
-        village_cache_repository=get_village_cache_repository(),
+        district_cache_repository=(
+            get_district_cache_repository()
+        ),
+        taluka_cache_repository=(
+            get_taluka_cache_repository()
+        ),
+        village_cache_repository=(
+            get_village_cache_repository()
+        ),
     )
 
 
@@ -181,20 +221,69 @@ def get_property_identify_service() -> PropertyIdentifyService:
     )
 
 
-# ---------------------------------------------------------------------
-# Admin Sync Service
-# ---------------------------------------------------------------------
+# ============================================================
+# ADMIN SYNC SERVICE
+# ============================================================
+
+_admin_sync_service_instance: AdminSyncService | None = None
 
 def get_admin_sync_service() -> AdminSyncService:
-    return AdminSyncService(
-        village_service=get_village_service(),
-        village_map_service=get_village_map_service(),
-        village_map_cache_repository=get_village_map_cache_repository(),
-    )
+    """
+    Return the shared AdminSyncService instance.
 
-# ---------------------------------------------------------------------
-# Admin Dashboard Service
-# ---------------------------------------------------------------------
+    IMPORTANT:
+    AdminSyncService maintains in-memory synchronization locks.
+
+    Therefore it MUST be shared across requests.
+
+    This prevents:
+        Request 1 -> district 02 sync running
+        Request 2 -> district 02 sync starting again
+
+    Both requests must see the same:
+        _active_district_syncs
+        _active_taluka_syncs
+        _active_village_syncs
+    """
+
+    global _admin_sync_service_instance
+
+    if _admin_sync_service_instance is None:
+        _admin_sync_service_instance = AdminSyncService(
+            village_repository=get_village_repository(),
+
+            district_cache_repository=(
+                get_district_cache_repository()
+            ),
+
+            taluka_cache_repository=(
+                get_taluka_cache_repository()
+            ),
+
+            village_cache_repository=(
+                get_village_cache_repository()
+            ),
+
+            property_cache_repository=(
+                get_property_cache_repository()
+            ),
+
+            # NEW:
+            # Used to determine whether a village has already
+            # been synchronized and should therefore be skipped
+            # during normal/resume sync.
+            village_map_cache_repository=(
+                get_village_map_cache_repository()
+            ),
+
+            village_map_service=get_village_map_service(),
+        )
+    return _admin_sync_service_instance
+
+
+# ============================================================
+# ADMIN DASHBOARD SERVICE
+# ============================================================
 
 def get_admin_dashboard_service() -> AdminDashboardService:
     return AdminDashboardService(

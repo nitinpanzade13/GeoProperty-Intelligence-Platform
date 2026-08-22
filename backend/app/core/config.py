@@ -98,7 +98,8 @@ class Settings(BaseSettings):
     # GeoJSON Configuration
     # ============================================================
 
-    MAX_PARALLEL_SURVEY_REQUESTS: int = 20
+    MAX_PARALLEL_VILLAGE_REQUESTS: int = 10
+    MAX_PARALLEL_SURVEY_REQUESTS: int = 5
     MAX_SURVEYS_PER_VILLAGE: int = 5000
 
     # ============================================================

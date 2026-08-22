@@ -50,10 +50,7 @@ class VillageMapRepository:
         # to BhuNaksha at the same time.
         # --------------------------------------------------
 
-        max_concurrent = min(
-            settings.MAX_PARALLEL_SURVEY_REQUESTS,
-            3,
-        )
+        max_concurrent = settings.MAX_PARALLEL_SURVEY_REQUESTS
 
         semaphore = asyncio.Semaphore(
             max_concurrent

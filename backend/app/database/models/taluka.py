@@ -10,7 +10,6 @@ class Taluka(Base):
     taluka_code = Column(
         String(20),
         primary_key=True,
-        index=True,
     )
 
     taluka_name = Column(
@@ -24,6 +23,7 @@ class Taluka(Base):
             "districts.district_code",
             ondelete="CASCADE",
         ),
+        primary_key=True,
         nullable=False,
     )
 

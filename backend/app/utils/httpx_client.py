@@ -32,7 +32,7 @@ class GISHttpClient:
                 limits=self._limits,
                 timeout=self._timeout,
                 headers=self._headers,
-                follow_redirects=True,
+                follow_redirects=False,
             )
 
         return self._client
@@ -81,6 +81,17 @@ class GISHttpClient:
                     data=data,
                     json=json,
                     headers=headers,
+                )
+
+                #--------------------------------------------------
+                # Log the response details for debugging
+                #--------------------------------------------------
+
+                logger.info(
+                    f"GIS RESPONSE: status={response.status_code} "
+                    f"url={response.url} "
+                    f"location={response.headers.get('location')} "
+                    f"content_type={response.headers.get('content-type')}"
                 )
 
                 # --------------------------------------------------

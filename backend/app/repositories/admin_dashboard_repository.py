@@ -177,8 +177,35 @@ class AdminDashboardRepository:
                 Village.gis_code,
                 Village.village_name,
                 Village.taluka_code,
+                # Property count for each village
+                func.count(
+                    distinct(Property.property_id)
+                ).label("property_count"),
+
+                #owner count for each village
+                func.count(
+                    distinct(PropertyOwner.id)
+                ).label("owner_count"),
+
+                #Survey count from village_map_cache for each village
+                func.coalesce(
+                    VillageMapCache.survey_count, 0,
+                ).label("survey_count"),
+
+                # Map status for each village
                 VillageMapCache.gis_code.label("map_gis_code"),
             )
+            # village -> property 
+            .outerjoin(
+                Property,
+                Property.gis_code == Village.gis_code,
+            )
+            # property -> owners
+            .outerjoin(
+                PropertyOwner,
+                PropertyOwner.property_id == Property.property_id,
+            )
+            # village -> village_map_cache
             .outerjoin(
                 VillageMapCache,
                 VillageMapCache.gis_code == Village.gis_code,
@@ -187,6 +214,12 @@ class AdminDashboardRepository:
                 Village.district_code == district_code,
                 Village.taluka_code == taluka_code,
             )
+            .group_by(
+                Village.gis_code,
+                Village.village_name,
+                Village.taluka_code,
+                VillageMapCache.gis_code,
+            )
             .order_by(Village.village_name)
             .all()
         )
@@ -194,6 +227,10 @@ class AdminDashboardRepository:
         result = []
 
         for row in rows:
+            property_count = row.property_count or 0
+            owner_count = row.owner_count or 0
+            survey_count = row.survey_count or 0
+            
             map_status = (
                 "synced"
                 if row.map_gis_code is not None
@@ -205,6 +242,9 @@ class AdminDashboardRepository:
                     "gis_code": row.gis_code,
                     "village_name": row.village_name,
                     "taluka_code": row.taluka_code,
+                    "property_count": property_count,
+                    "owner_count": owner_count,
+                    "survey_count": survey_count,
                     "map_status": map_status,
                 }
             )
