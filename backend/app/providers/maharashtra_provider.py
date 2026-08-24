@@ -29,7 +29,8 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
     No fabricated plot IDs, synthetic fallback GIS codes, or mock data are used.
     """
 
-    REST_BASE_URL = "https://mahabhunakasha.mahabhumi.gov.in/rest"
+    # Fallback constant — only used if the settings field is missing.
+    _DEFAULT_REST_BASE_URL = "https://mahabhunakasha.mahabhumi.gov.in/rest"
 
     def __init__(
         self,
@@ -38,7 +39,10 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
     ):
         self.http_client = http_client
         self.cache = cache
-        self.base_url = getattr(settings, "MH_BHUNAKSHA_BASE_URL", self.REST_BASE_URL)
+        # Canonical REST base URL from settings; falls back to hard-coded /rest.
+        self.rest_base_url = getattr(
+            settings, "MH_BHUNAKSHA_REST_BASE_URL", self._DEFAULT_REST_BASE_URL
+        )
 
     async def get_districts(self) -> List[District]:
         cache_key = "mh_districts"
@@ -47,7 +51,7 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
             logger.info("Cache hit for mh_districts")
             return cached
 
-        url = f"{self.REST_BASE_URL}/VillageMapService/ListsAfterLevelGeoref"
+        url = f"{self.rest_base_url}/VillageMapService/ListsAfterLevelGeoref"
         data = {
             "state": "27",
             "level": "1",
@@ -93,7 +97,7 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
             logger.info(f"Cache hit for mh_talukas_{district_code}")
             return cached
 
-        url = f"{self.REST_BASE_URL}/VillageMapService/ListsAfterLevelGeoref"
+        url = f"{self.rest_base_url}/VillageMapService/ListsAfterLevelGeoref"
         data = {
             "state": "27",
             "level": "2",
@@ -138,7 +142,7 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
             logger.info(f"Cache hit for mh_villages_{district_code}_{taluka_code}")
             return cached
 
-        url = f"{self.REST_BASE_URL}/VillageMapService/ListsAfterLevelGeoref"
+        url = f"{self.rest_base_url}/VillageMapService/ListsAfterLevelGeoref"
         data = {
             "state": "27",
             "level": "3",
@@ -216,7 +220,7 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
             logger.info(f"Cache hit for mh_surveys_{gis_code}")
             return cached
 
-        url = f"{self.REST_BASE_URL}/VillageMapService/kidelistFromGisCodeMH"
+        url = f"{self.rest_base_url}/VillageMapService/kidelistFromGisCodeMH"
         data = {
             "state": "27",
             "logedLevels": gis_code,
@@ -276,7 +280,7 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
             logger.info(f"Cache hit for mh_plot_detail_{gis_code}_{survey_number}")
             return cached
 
-        url = f"{self.REST_BASE_URL}/MapInfo/getPlotInfo"
+        url = f"{self.rest_base_url}/MapInfo/getPlotInfo"
 
         data = {
             "state": "27",
@@ -392,7 +396,7 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
         property_obj = await self.get_plot_details(gis_code, survey_number)
         plot_id = property_obj.plot_id
 
-        url = f"{self.REST_BASE_URL}/MapInfo/getExtentGeoref"
+        url = f"{self.rest_base_url}/MapInfo/getExtentGeoref"
         data = {
             "state": "27",
             "giscode": gis_code,

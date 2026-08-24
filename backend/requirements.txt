@@ -58,3 +58,14 @@ celery>=5.4.0
 # Email Validation 
 # ----------------------------
 email-validator
+
+# ----------------------------
+# GIS & Spatial Operations
+# ----------------------------
+pyproj>=3.6.0
+shapely>=2.0.0
+
+# ----------------------------
+# Security
+# ----------------------------
+python-jose[cryptography]>=3.3.0

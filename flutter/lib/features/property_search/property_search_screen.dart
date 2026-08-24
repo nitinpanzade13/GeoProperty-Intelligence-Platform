@@ -14,7 +14,11 @@ import '../../core/constants/defaults.dart';
 import 'widgets/search_dropdown.dart';
 
 class PropertySearchScreen extends ConsumerStatefulWidget {
-  const PropertySearchScreen({super.key});
+  const PropertySearchScreen({super.key, this.isHome = false});
+
+  /// When true, this screen acts as the app's primary home page:
+  /// no back button, branded AppBar, secondary navigation actions.
+  final bool isHome;
 
   @override
   ConsumerState<PropertySearchScreen> createState() =>
@@ -312,9 +316,73 @@ class _PropertySearchScreenState extends ConsumerState<PropertySearchScreen> {
         !_isSubmitting;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search Land Record'),
-      ),
+      appBar: widget.isHome
+          ? AppBar(
+              automaticallyImplyLeading: false,
+              title: Row(
+                children: const [
+                  Icon(Icons.radar_rounded, color: AppColors.primary, size: 28),
+                  SizedBox(width: 10),
+                  Text(
+                    'GeoProperty',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  ),
+                ],
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.map_rounded),
+                  tooltip: 'Live Map',
+                  onPressed: () => context.push(Routes.map),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert_rounded),
+                  tooltip: 'More',
+                  onSelected: (route) => context.push(route),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: '/survey',
+                      child: ListTile(
+                        leading: Icon(Icons.assignment_rounded),
+                        title: Text('Surveys'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: '/favorites',
+                      child: ListTile(
+                        leading: Icon(Icons.star_rounded),
+                        title: Text('Favorites'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: '/profile',
+                      child: ListTile(
+                        leading: Icon(Icons.person_rounded),
+                        title: Text('Profile'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: '/settings',
+                      child: ListTile(
+                        leading: Icon(Icons.settings_rounded),
+                        title: Text('Settings'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : AppBar(
+              title: const Text('Search Land Record'),
+            ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(

@@ -94,6 +94,44 @@ class GISHttpClient:
                     f"content_type={response.headers.get('content-type')}"
                 )
 
+                #--------------------------------------------------
+                # Handle WAF 302 Redirect Challenge
+                #--------------------------------------------------
+                
+                if response.status_code == 302 and "set-cookie" in response.headers:
+                    location = response.headers.get("location", "")
+                    if location and (location in url or url.endswith(location)):
+                        logger.info(
+                            "WAF challenge detected (302 with set-cookie). "
+                            "Retrying immediately as POST."
+                        )
+                        response = await client.request(
+                            method=method,
+                            url=url,
+                            params=params,
+                            data=data,
+                            json=json,
+                            headers=headers,
+                        )
+                        logger.info(
+                            f"WAF Retry RESPONSE: status={response.status_code} "
+                            f"url={response.url} "
+                            f"content_type={response.headers.get('content-type')}"
+                        )
+
+                # --------------------------------------------------
+                # Handle non-JSON responses
+                # --------------------------------------------------
+                
+                if "application/json" not in (response.headers.get("content-type") or ""):
+                    # Log snippet of body to diagnose HTML/error pages
+                    body_snippet = response.text[:500] if hasattr(response, "text") else ""
+                    logger.warning(
+                        f"Non-JSON response from GIS: {response.status_code} "
+                        f"{response.headers.get('content-type')} - "
+                        f"Body: {repr(body_snippet)}"
+                    )
+
                 # --------------------------------------------------
                 # Handle temporary HTTP failures
                 # --------------------------------------------------

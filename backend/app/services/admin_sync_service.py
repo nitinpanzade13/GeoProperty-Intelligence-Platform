@@ -167,155 +167,155 @@ class AdminSyncService:
 
         self._active_village_syncs: set[str] = set()
 
-        # =========================================================
-        # ASYNC DISTRICT SYNC
-        # =========================================================
+    # =========================================================
+    # ASYNC DISTRICT SYNC
+    # =========================================================
 
-        def start_district_sync(
-            self,
-            district_code: str,
-            force_refresh: bool = False,
-        ) -> Dict[str, Any]:
-            """
-            Start a district synchronization in the background.
+    def start_district_sync(
+        self,
+        district_code: str,
+        force_refresh: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Start a district synchronization in the background.
 
-            IMPORTANT:
-            This method returns immediately.
+        IMPORTANT:
+        This method returns immediately.
 
-            The actual synchronization continues in an asyncio task.
-            """
+        The actual synchronization continues in an asyncio task.
+        """
 
-            district_code = str(
+        district_code = str(
+            district_code
+        ).strip()
+
+        if not district_code:
+            return {
+                "success": False,
+                "sync_status": "not_synced",
+                "sync_in_progress": False,
+                "message": "District code is required.",
+            }
+
+        # -----------------------------------------------------
+        # Prevent duplicate jobs globally.
+        # -----------------------------------------------------
+
+        if admin_sync_registry.is_running(
+            district_code
+        ):
+            existing = admin_sync_registry.get(
                 district_code
-            ).strip()
+            )
 
-            if not district_code:
-                return {
-                    "success": False,
-                    "sync_status": "not_synced",
-                    "sync_in_progress": False,
-                    "message": "District code is required.",
-                }
+            return {
+                **(
+                    existing
+                    or {}
+                ),
+                "success": True,
+                "already_running": True,
+            }
 
-            # -----------------------------------------------------
-            # Prevent duplicate jobs globally.
-            # -----------------------------------------------------
+        # -----------------------------------------------------
+        # Register job BEFORE starting task.
+        # -----------------------------------------------------
 
-            if admin_sync_registry.is_running(
-                district_code
-            ):
-                existing = admin_sync_registry.get(
-                    district_code
-                )
+        job = admin_sync_registry.start(
+            district_code=district_code,
+            force_refresh=force_refresh,
+        )
 
-                return {
-                    **(
-                        existing
-                        or {}
-                    ),
-                    "success": True,
-                    "already_running": True,
-                }
+        # -----------------------------------------------------
+        # Start actual synchronization in background.
+        # -----------------------------------------------------
 
-            # -----------------------------------------------------
-            # Register job BEFORE starting task.
-            # -----------------------------------------------------
+        asyncio.create_task(
+            self._run_district_sync_background(
+                district_code=district_code,
+                force_refresh=force_refresh,
+            )
+        )
 
-            job = admin_sync_registry.start(
+        return {
+            **job,
+            "success": True,
+            "already_running": False,
+        }
+
+    async def _run_district_sync_background(
+        self,
+        district_code: str,
+        force_refresh: bool = False,
+    ):
+        try:
+            logger.info(
+                "BACKGROUND DISTRICT SYNC STARTED: %s",
+                district_code,
+            )
+
+            result = await self.sync_district(
                 district_code=district_code,
                 force_refresh=force_refresh,
             )
 
-            # -----------------------------------------------------
-            # Start actual synchronization in background.
-            # -----------------------------------------------------
-
-            asyncio.create_task(
-                self._run_district_sync_background(
-                    district_code=district_code,
-                    force_refresh=force_refresh,
-                )
+            admin_sync_registry.finish(
+                district_code,
+                result,
             )
 
-            return {
-                **job,
-                "success": True,
-                "already_running": False,
-            }
-
-        async def _run_district_sync_background(
-            self,
-            district_code: str,
-            force_refresh: bool = False,
-        ):
-            try:
-                logger.info(
-                    "BACKGROUND DISTRICT SYNC STARTED: %s",
-                    district_code,
-                )
-
-                result = await self.sync_district(
-                    district_code=district_code,
-                    force_refresh=force_refresh,
-                )
-
-                admin_sync_registry.finish(
-                    district_code,
-                    result,
-                )
-
-                logger.info(
-                    "BACKGROUND DISTRICT SYNC FINISHED: "
-                    "district=%s status=%s",
-                    district_code,
-                    admin_sync_registry.get(
-                        district_code
-                    ).get("sync_status"),
-                )
-
-            except Exception as exc:
-                logger.exception(
-                    "BACKGROUND DISTRICT SYNC FAILED: "
-                    "district=%s",
-                    district_code,
-                )
-
-                admin_sync_registry.fail(
-                    district_code,
-                    str(exc),
-                )
-
-        def get_district_sync_status(
-            self,
-            district_code: str,
-        ) -> Dict[str, Any]:
-
-            district_code = str(
-                district_code
-            ).strip()
-
-            job = admin_sync_registry.get(
-                district_code
+            logger.info(
+                "BACKGROUND DISTRICT SYNC FINISHED: "
+                "district=%s status=%s",
+                district_code,
+                admin_sync_registry.get(
+                    district_code
+                ).get("sync_status"),
             )
 
-            if job:
-                return job
+        except Exception as exc:
+            logger.exception(
+                "BACKGROUND DISTRICT SYNC FAILED: "
+                "district=%s",
+                district_code,
+            )
 
-            return {
-                "success": True,
-                "district_code": district_code,
-                "sync_status": "not_synced",
-                "sync_in_progress": False,
-                "total_talukas": 0,
-                "total_villages": 0,
-                "processed_villages": 0,
-                "skipped_villages": 0,
-                "successful_villages": 0,
-                "failed_villages": 0,
-                "pending_villages": 0,
-                "progress_percent": 0,
-                "message": "No active synchronization job.",
-            }
+            admin_sync_registry.fail(
+                district_code,
+                str(exc),
+            )
+
+    def get_district_sync_status(
+        self,
+        district_code: str,
+    ) -> Dict[str, Any]:
+
+        district_code = str(
+            district_code
+        ).strip()
+
+        job = admin_sync_registry.get(
+            district_code
+        )
+
+        if job:
+            return job
+
+        return {
+            "success": True,
+            "district_code": district_code,
+            "sync_status": "not_synced",
+            "sync_in_progress": False,
+            "total_talukas": 0,
+            "total_villages": 0,
+            "processed_villages": 0,
+            "skipped_villages": 0,
+            "successful_villages": 0,
+            "failed_villages": 0,
+            "pending_villages": 0,
+            "progress_percent": 0,
+            "message": "No active synchronization job.",
+        }
 
     # =========================================================
     # LOCATION DATA

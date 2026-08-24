@@ -126,7 +126,11 @@ class Settings(BaseSettings):
         "https://mahabhunakasha.mahabhumi.gov.in/bhunaksha/services"
     )
 
-
+    # Canonical REST base URL for Maharashtra BhuNaksha data API.
+    # This is the source of truth for structured land-record REST calls.
+    MH_BHUNAKSHA_REST_BASE_URL: str = (
+        "https://mahabhunakasha.mahabhumi.gov.in/rest"
+    )
 
     class Config:
         case_sensitive = True

@@ -2,7 +2,6 @@ import 'package:go_router/go_router.dart';
 import 'routes.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/permissions/permission_screen.dart';
-import '../../features/home/home_screen.dart';
 import '../../features/survey/survey_screen.dart';
 import '../../features/property/property_detail_screen.dart';
 import '../../features/property_search/property_search_screen.dart';
@@ -31,9 +30,10 @@ class AppRouter {
         path: Routes.permissions,
         builder: (context, state) => const PermissionScreen(),
       ),
+      // /home now renders Search Land Record as the primary user home screen
       GoRoute(
         path: Routes.home,
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) => const PropertySearchScreen(isHome: true),
       ),
       GoRoute(
         path: Routes.survey,
