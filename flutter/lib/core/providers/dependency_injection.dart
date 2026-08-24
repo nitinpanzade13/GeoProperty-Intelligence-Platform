@@ -13,12 +13,13 @@ import '../repositories/survey_repository.dart';
 import '../repositories/property_repository.dart';
 import '../repositories/user_repository.dart';
 import '../../features/admin/admin_api_service.dart';
+import '../config/environment.dart';
 
 final getIt = GetIt.instance;
 
 Future<void> setupDependencyInjection({String? customIp}) async {
   // Config
-  final config = AppConfig.development(customIp: customIp);
+  final config = Environment.config;
   if (!getIt.isRegistered<AppConfig>()) {
     getIt.registerSingleton<AppConfig>(config);
   }
