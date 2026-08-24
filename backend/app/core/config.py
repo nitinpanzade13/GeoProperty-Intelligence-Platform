@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     # ============================================================
 
     CORS_ORIGINS: List[str] = [
+
+        # Production
+        "https://geolocation.pureframelabs.in",
+
+        # Local development
         "http://localhost",
         "http://localhost:8000",
         "http://localhost:3000",
@@ -55,9 +60,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:8000",
     ]
 
-    CORS_ORIGIN_REGEX: str = (
-        r"^http://(localhost|127\.0\.0\.1)(:\d+)?$"
-    )
+    CORS_ORIGIN_REGEX: str | None = None
 
     # ============================================================
     # HTTP Client Configuration
