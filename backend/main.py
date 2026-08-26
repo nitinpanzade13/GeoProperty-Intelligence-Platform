@@ -11,9 +11,11 @@ from app.api.v2.router import api_v2_router
 from app.schemas.response_wrapper import APIResponse
 
 # ---------- SQLAlchemy ----------
+
 from app.database.base import Base
-from app.database.session import engine
+from app.database.session import engine, SessionLocal
 from app.database import models
+from app.database.models.state import State
 
 # Import all models here
 # -------------------------------
@@ -27,6 +29,39 @@ app = FastAPI(
 
 # Automatically create tables
 Base.metadata.create_all(bind=engine)
+
+# Seed initial state data
+def seed_initial_state():
+    db = SessionLocal()
+
+    try:
+        existing_state = (
+            db.query(State)
+            .filter(State.state_code == "27")
+            .first()
+        )
+
+        if existing_state is None:
+            db.add(
+                State(
+                    state_code="27",
+                    state_name="Maharashtra",
+                )
+            )
+            db.commit()
+
+            logger.info(
+                "Initial state data seeded : Maharashtra (state_code: 27)"
+                )
+        else:
+            logger.info(
+                "Initial state data already exists. Skipping seeding."
+            )
+
+    finally:
+        db.close()
+
+seed_initial_state()
 
 # Configure CORS Middleware
 app.add_middleware(

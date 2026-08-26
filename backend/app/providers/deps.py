@@ -288,4 +288,6 @@ def get_admin_sync_service() -> AdminSyncService:
 def get_admin_dashboard_service() -> AdminDashboardService:
     return AdminDashboardService(
         repository=AdminDashboardRepository(),
+        district_cache_repository=get_district_cache_repository(),
+        village_repository=get_village_repository(),
     )
