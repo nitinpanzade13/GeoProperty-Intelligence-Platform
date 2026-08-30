@@ -30,21 +30,26 @@ class PropertyApiService {
 
     final map = data as Map<String, dynamic>;
 
+    // -------------------------------------------------
+    // Owners
+    // -------------------------------------------------
+
     final List<dynamic> ownersRaw = map['owners'] as List<dynamic>? ?? [];
 
     final owners = ownersRaw.map((o) {
       final om = o as Map<String, dynamic>;
 
       return OwnerModel(
-        ownerId: om['owner_id'] as String? ?? 'OWN-101',
-        fullName: om['owner_name'] as String? ??
-            om['full_name'] as String? ??
-            'Registered Owner',
-        ownershipPercentage: (om['ownership_percentage'] as num?)?.toDouble() ??
-            Defaults.fullOwnership,
-        khataNumber: om['khata_number'] as String? ?? 'KH-101',
+        ownerName: om['owner_name'] as String? ?? 'Registered Owner',
+        khataNumber: om['khata_number'] as String?,
+        totalArea: (om['total_area'] as num?)?.toDouble() ?? 0.0,
+        potKharaba: (om['pot_kharaba'] as num?)?.toDouble() ?? 0.0,
       );
     }).toList();
+
+    // -------------------------------------------------
+    // Polygon
+    // -------------------------------------------------
 
     List<PolygonPointModel> polyPoints = [];
 
@@ -61,8 +66,16 @@ class PropertyApiService {
       }).toList();
     }
 
+    // -------------------------------------------------
+    // Property Area
+    // -------------------------------------------------
+
     final areaSqMeters = (map['area_sq_meters'] as num?)?.toDouble() ??
         Defaults.defaultAreaSqMeters;
+
+    // -------------------------------------------------
+    // Property
+    // -------------------------------------------------
 
     return PropertyModel(
       propertyId: map['property_id'] as String? ?? 'PROP-101',

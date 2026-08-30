@@ -1,59 +1,100 @@
-from app.repositories.remote.property_repository import PropertyRepository
+from typing import Optional
+
+from app.models.domain_models import Property
 from app.schemas.property import (
     PropertyDetailsResponse,
     OwnerSchema,
     PolygonSchema,
 )
-from app.schemas.extent import Point2DSchema, PlotExtentSchema
+from app.schemas.extent import (
+    Point2DSchema,
+    PlotExtentSchema,
+)
 
 
 class PropertyService:
-    def __init__(self, repository: PropertyRepository):
+
+    def __init__(self, repository):
         self.repository = repository
 
     async def get_property_details(
-        self, gis_code: str, survey_number: str
-    ) -> PropertyDetailsResponse:
-        prop = await self.repository.fetch_property_details(gis_code, survey_number)
+        self,
+        gis_code: str,
+        survey_number: str,
+    ) -> Optional[PropertyDetailsResponse]:
 
-        owners_schema = [
-            OwnerSchema(
-                owner_name=o.owner_name,
-                khata_number=o.khata_number,
-                area_share_sq_meters=o.area_share_sq_meters,
-                ownership_percentage=o.ownership_percentage,
+        property_data: Optional[Property] = (
+            await self.repository.get_property_details(
+                gis_code=gis_code,
+                survey_number=survey_number,
             )
-            for o in prop.owners
+        )
+
+        if property_data is None:
+            return None
+
+        # -------------------------------------------------
+        # Owners
+        # -------------------------------------------------
+
+        owners = [
+            OwnerSchema(
+                owner_name=owner.owner_name,
+                khata_number=owner.khata_number,
+                total_area=owner.total_area,
+                pot_kharaba=owner.pot_kharaba,
+            )
+            for owner in property_data.owners
         ]
 
-        polygon_schema = None
-        if prop.polygon:
-            polygon_schema = PolygonSchema(
-                polygon_id=prop.polygon.polygon_id,
+        # -------------------------------------------------
+        # Polygon
+        # -------------------------------------------------
+
+        polygon = None
+
+        if property_data.polygon is not None:
+
+            polygon = PolygonSchema(
+                polygon_id=property_data.polygon.polygon_id,
                 points=[
-                    Point2DSchema(latitude=p.latitude, longitude=p.longitude)
-                    for p in prop.polygon.points
+                    Point2DSchema(
+                        latitude=point.latitude,
+                        longitude=point.longitude,
+                    )
+                    for point in property_data.polygon.points
                 ],
-                area_sq_meters=prop.polygon.area_sq_meters,
+                area_sq_meters=(
+                    property_data.polygon.area_sq_meters
+                ),
             )
 
-        extent_schema = None
-        if prop.extent:
-            extent_schema = PlotExtentSchema(
-                min_latitude=prop.extent.min_latitude,
-                min_longitude=prop.extent.min_longitude,
-                max_latitude=prop.extent.max_latitude,
-                max_longitude=prop.extent.max_longitude,
+        # -------------------------------------------------
+        # Extent
+        # -------------------------------------------------
+
+        extent = None
+
+        if property_data.extent is not None:
+
+            extent = PlotExtentSchema(
+                min_latitude=property_data.extent.min_latitude,
+                min_longitude=property_data.extent.min_longitude,
+                max_latitude=property_data.extent.max_latitude,
+                max_longitude=property_data.extent.max_longitude,
             )
+
+        # -------------------------------------------------
+        # Response
+        # -------------------------------------------------
 
         return PropertyDetailsResponse(
-            property_id=prop.property_id,
-            survey_number=prop.survey_number,
-            area_sq_meters=prop.area_sq_meters,
-            pot_kharaba_sq_meters=prop.pot_kharaba_sq_meters,
-            plot_id=prop.plot_id,
-            gis_code=prop.gis_code,
-            owners=owners_schema,
-            polygon=polygon_schema,
-            extent=extent_schema,
+            property_id=property_data.property_id,
+            survey_number=property_data.survey_number,
+            area_sq_meters=property_data.area_sq_meters,
+            plot_id=property_data.plot_id,
+            gis_code=property_data.gis_code,
+            owners=owners,
+            polygon=polygon,
+            extent=extent,
         )

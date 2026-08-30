@@ -162,8 +162,10 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                   child: Column(
                     children: [
                       _buildInfoRow('Survey Number', survey.surveyNumber),
-                      _buildInfoRow('Subdivision (Hissa)',
-                          survey.subdivisionNumber ?? Defaults.subdivisionNumber),
+                      _buildInfoRow(
+                          'Subdivision (Hissa)',
+                          survey.subdivisionNumber ??
+                              Defaults.subdivisionNumber),
                       _buildInfoRow('Land Classification', survey.landType),
                       _buildInfoRow('District', survey.district),
                       _buildInfoRow('Taluka', survey.taluka),
@@ -183,7 +185,6 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                           'Total Sq. Meters', '${survey.areaSqMeters} m²'),
                       _buildInfoRow(
                           'Area in Hectares', '${prop.totalAreaHectares} Ha'),
-                      _buildInfoRow('Pot Kharaba (Uncultivable)', '150.0 m²'),
                       if (prop.valuationEstimateInr != null)
                         _buildInfoRow(
                           'Estimated Market Valuation',
@@ -208,7 +209,6 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                     final owner = prop.owners[index];
                     return ExpandableOwnerCard(
                       owner: owner,
-                      totalAreaSqMeters: survey.areaSqMeters,
                     );
                   },
                 ),

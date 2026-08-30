@@ -31,8 +31,12 @@ class PropertySearchDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final survey = property.surveyDetails;
-    final primaryOwner = property.owners.isNotEmpty ? property.owners.first.fullName : 'Registered Owner';
-    final primaryKhata = property.owners.isNotEmpty ? property.owners.first.khataNumber : 'KH-1001';
+    final primaryOwner = property.owners.isNotEmpty
+        ? property.owners.first.ownerName
+        : 'Registered Owner';
+    final primaryKhata = property.owners.isNotEmpty
+        ? property.owners.first.khataNumber
+        : 'KH-1001';
 
     return Scaffold(
       appBar: AppBar(
@@ -52,7 +56,8 @@ class PropertySearchDetailsScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.secondary.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
@@ -68,7 +73,10 @@ class PropertySearchDetailsScreen extends StatelessWidget {
                       ),
                       Text(
                         'GIS: $gisCode',
-                        style: const TextStyle(color: Colors.grey, fontSize: 11, fontFamily: 'monospace'),
+                        style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 11,
+                            fontFamily: 'monospace'),
                       ),
                     ],
                   ),
@@ -80,7 +88,8 @@ class PropertySearchDetailsScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '$village, $taluka, $district, ${Defaults.state}',
-                    style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: Colors.grey),
                   ),
                 ],
               ),
@@ -103,22 +112,24 @@ class PropertySearchDetailsScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Land & Measurement Metrics Card
-            Text('Land & Measurement Metrics', style: theme.textTheme.titleLarge),
+            Text('Land & Measurement Metrics',
+                style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             GlassCard(
               child: Column(
                 children: [
                   _buildDetailRow('Survey Number', surveyNumber),
-                  _buildDetailRow('Subdivision (Hissa)', survey.subdivisionNumber ?? Defaults.subdivisionNumber),
-                  _buildDetailRow('Total Area (Sq. Meters)', '${survey.areaSqMeters} m²'),
-                  _buildDetailRow('Total Area (Hectares)', '${property.totalAreaHectares} Ha'),
-                  _buildDetailRow('Pot Kharaba (Uncultivable)', '150.0 m²'),
-                  if (property.valuationEstimateInr != null)
-                    _buildDetailRow(
-                      'Estimated Valuation',
-                      '₹ ${property.valuationEstimateInr!.toStringAsFixed(2)}',
-                      valueColor: AppColors.secondary,
-                    ),
+                  _buildDetailRow('Subdivision (Hissa)',
+                      survey.subdivisionNumber ?? Defaults.subdivisionNumber),
+                  _buildDetailRow(
+                      'Total Area (Sq. Meters)', '${survey.areaSqMeters} m²'),
+                  _buildDetailRow('Total Area (Hectares)',
+                      '${property.totalAreaHectares} Ha'),
+                  _buildDetailRow(
+                    'Estimated Valuation',
+                    '₹ ${property.valuationEstimateInr!.toStringAsFixed(2)}',
+                    valueColor: AppColors.secondary,
+                  ),
                 ],
               ),
             ),
@@ -132,7 +143,8 @@ class PropertySearchDetailsScreen extends StatelessWidget {
                 children: [
                   _buildDetailRow('Primary Registered Owner', primaryOwner),
                   _buildDetailRow('Khata Register No.', primaryKhata ?? 'N/A'),
-                  _buildDetailRow('Total Owner Count', '${property.owners.length} Registered Owners'),
+                  _buildDetailRow('Total Owner Count',
+                      '${property.owners.length} Registered Owners'),
                 ],
               ),
             ),
@@ -140,7 +152,8 @@ class PropertySearchDetailsScreen extends StatelessWidget {
 
             // Multi-Owner Cards List
             if (property.owners.isNotEmpty) ...[
-              Text('All Registered Owners (${property.owners.length})', style: theme.textTheme.titleLarge),
+              Text('All Registered Owners (${property.owners.length})',
+                  style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
               ListView.separated(
                 shrinkWrap: true,
@@ -151,7 +164,6 @@ class PropertySearchDetailsScreen extends StatelessWidget {
                   final owner = property.owners[index];
                   return ExpandableOwnerCard(
                     owner: owner,
-                    totalAreaSqMeters: survey.areaSqMeters,
                   );
                 },
               ),

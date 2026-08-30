@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Column,
+    Numeric,
     String,
     Float,
     Integer,
@@ -19,8 +20,8 @@ class PropertyOwner(Base):
             "property_id",
             "owner_name",
             "khata_number",
-            "area_share_sq_meters",
-            "ownership_percentage",
+            "total_area",
+            "pot_kharaba",
             name="uq_property_owner_record",
         ),
     )
@@ -51,14 +52,14 @@ class PropertyOwner(Base):
         nullable=True,
     )
 
-    area_share_sq_meters = Column(
-        Float,
+    total_area = Column(
+        Numeric(10, 4), 
         nullable=False,
-        default=0.0,
+        default=0,
     )
 
-    ownership_percentage = Column(
-        Float,
-        nullable=False,
-        default=100.0,
+    pot_kharaba = Column(
+        Numeric(10, 4),
+        nullable=False, 
+        default=0,
     )

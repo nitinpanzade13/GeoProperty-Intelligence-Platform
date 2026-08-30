@@ -1,4 +1,5 @@
 from typing import List, Optional
+
 from app.schemas.location import LocationSchema
 from app.schemas.survey import SurveySchema, PolygonPointSchema
 from app.schemas.owner import OwnerSchema
@@ -7,7 +8,13 @@ from app.schemas.user import UserSchema
 
 
 class MockDataRepository:
+
     def __init__(self):
+
+        # -------------------------------------------------
+        # Location
+        # -------------------------------------------------
+
         self._location = LocationSchema(
             latitude=18.5204,
             longitude=73.8567,
@@ -16,27 +23,34 @@ class MockDataRepository:
             taluka="Haveli",
             village="Shivajinagar",
             state="Maharashtra",
-            pincode="411005"
+            pincode="411005",
         )
-        
+
+        # -------------------------------------------------
+        # Owners
+        # -------------------------------------------------
+
         self._owners = [
             OwnerSchema(
-                owner_id="OWN-8821",
-                full_name="Rajesh Suresh Patil",
-                ownership_percentage=60.0,
+                owner_name="Rajesh Suresh Patil",
                 khata_number="KH-4902",
-                contact_phone="+91 98220 12345"
+                total_area=0.9800,
+                pot_kharaba=0.0000,
             ),
             OwnerSchema(
-                owner_id="OWN-8822",
-                full_name="Sanjay Suresh Patil",
-                ownership_percentage=40.0,
+                owner_name="Sanjay Suresh Patil",
                 khata_number="KH-4902",
-                contact_phone="+91 98220 54321"
-            )
+                total_area=0.5000,
+                pot_kharaba=0.0800,
+            ),
         ]
-        
+
+        # -------------------------------------------------
+        # Surveys
+        # -------------------------------------------------
+
         self._surveys = [
+
             SurveySchema(
                 id="SURV-101",
                 survey_number="142",
@@ -49,13 +63,26 @@ class MockDataRepository:
                 location=self._location,
                 owners=self._owners,
                 polygon_coordinates=[
-                    PolygonPointSchema(latitude=18.5204, longitude=73.8567),
-                    PolygonPointSchema(latitude=18.5210, longitude=73.8575),
-                    PolygonPointSchema(latitude=18.5201, longitude=73.8582),
-                    PolygonPointSchema(latitude=18.5195, longitude=73.8570),
+                    PolygonPointSchema(
+                        latitude=18.5204,
+                        longitude=73.8567,
+                    ),
+                    PolygonPointSchema(
+                        latitude=18.5210,
+                        longitude=73.8575,
+                    ),
+                    PolygonPointSchema(
+                        latitude=18.5201,
+                        longitude=73.8582,
+                    ),
+                    PolygonPointSchema(
+                        latitude=18.5195,
+                        longitude=73.8570,
+                    ),
                 ],
-                is_favorite=True
+                is_favorite=True,
             ),
+
             SurveySchema(
                 id="SURV-102",
                 survey_number="145",
@@ -72,23 +99,33 @@ class MockDataRepository:
                     district="Pune",
                     taluka="Haveli",
                     village="Shivajinagar",
-                    pincode="411004"
+                    pincode="411004",
                 ),
                 owners=[
                     OwnerSchema(
-                        owner_id="OWN-9011",
-                        full_name="Meena Ramesh Deshmukh",
-                        ownership_percentage=100.0,
-                        khata_number="KH-1102"
+                        owner_name="Meena Ramesh Deshmukh",
+                        khata_number="KH-1102",
+                        total_area=0.8200,
+                        pot_kharaba=0.0000,
                     )
                 ],
                 polygon_coordinates=[
-                    PolygonPointSchema(latitude=18.5240, longitude=73.8590),
-                    PolygonPointSchema(latitude=18.5250, longitude=73.8600),
-                    PolygonPointSchema(latitude=18.5235, longitude=73.8610),
+                    PolygonPointSchema(
+                        latitude=18.5240,
+                        longitude=73.8590,
+                    ),
+                    PolygonPointSchema(
+                        latitude=18.5250,
+                        longitude=73.8600,
+                    ),
+                    PolygonPointSchema(
+                        latitude=18.5235,
+                        longitude=73.8610,
+                    ),
                 ],
-                is_favorite=False
+                is_favorite=False,
             ),
+
             SurveySchema(
                 id="SURV-103",
                 survey_number="88",
@@ -105,58 +142,116 @@ class MockDataRepository:
                     district="Pune",
                     taluka="Mulshi",
                     village="Hinjawadi",
-                    pincode="411057"
+                    pincode="411057",
                 ),
                 owners=[
                     OwnerSchema(
-                        owner_id="OWN-7711",
-                        full_name="Anil Kumar Sharma",
-                        ownership_percentage=100.0,
-                        khata_number="KH-3390"
+                        owner_name="Anil Kumar Sharma",
+                        khata_number="KH-3390",
+                        total_area=1.2400,
+                        pot_kharaba=0.0000,
                     )
                 ],
                 polygon_coordinates=[],
-                is_favorite=True
-            )
+                is_favorite=True,
+            ),
         ]
-        
+
+        # -------------------------------------------------
+        # User
+        # -------------------------------------------------
+
         self._user = UserSchema(
             user_id="USR-9901",
             name="Vikramaditya Kulkarni",
             email="vikram.kulkarni@geoproperty.ai",
-            avatar_url="https://images.unsplash.com/photo-1534528741775-53994a69daeb",
+            avatar_url=(
+                "https://images.unsplash.com/"
+                "photo-1534528741775-53994a69daeb"
+            ),
             role="Senior GIS Land Analyst",
-            saved_property_ids=["SURV-101", "SURV-103"],
+            saved_property_ids=[
+                "SURV-101",
+                "SURV-103",
+            ],
             preferred_map_type="hybrid",
-            notifications_enabled=True
+            notifications_enabled=True,
         )
+
+    # -----------------------------------------------------
+    # Location
+    # -----------------------------------------------------
 
     async def get_current_location(self) -> LocationSchema:
         return self._location
 
-    async def get_surveys(self, query: Optional[str] = None) -> List[SurveySchema]:
+    # -----------------------------------------------------
+    # Surveys
+    # -----------------------------------------------------
+
+    async def get_surveys(
+        self,
+        query: Optional[str] = None,
+    ) -> List[SurveySchema]:
+
         if not query:
             return self._surveys
+
         q = query.lower()
+
         return [
-            s for s in self._surveys
-            if q in s.survey_number.lower()
-            or q in s.village.lower()
-            or q in s.district.lower()
+            survey
+            for survey in self._surveys
+            if (
+                q in survey.survey_number.lower()
+                or q in survey.village.lower()
+                or q in survey.district.lower()
+            )
         ]
 
-    async def get_property_detail(self, property_id: str) -> PropertySchema:
-        survey = next((s for s in self._surveys if s.id == property_id), self._surveys[0])
+    # -----------------------------------------------------
+    # Property Details
+    # -----------------------------------------------------
+
+    async def get_property_detail(
+        self,
+        property_id: str,
+    ) -> PropertySchema:
+
+        survey = next(
+            (
+                survey
+                for survey in self._surveys
+                if survey.id == property_id
+            ),
+            self._surveys[0],
+        )
+
         return PropertySchema(
             property_id=survey.id,
-            title=f"Survey No. {survey.survey_number}/{survey.subdivision_number} - {survey.village}",
+            title=(
+                f"Survey No. "
+                f"{survey.survey_number}/"
+                f"{survey.subdivision_number} - "
+                f"{survey.village}"
+            ),
             survey_details=survey,
             owners=survey.owners,
-            total_area_hectares=round(survey.area_sq_meters / 10000.0, 4),
+            total_area_hectares=round(
+                survey.area_sq_meters / 10000.0,
+                4,
+            ),
             boundary_points=survey.polygon_coordinates,
-            valuation_estimate_inr=round(survey.area_sq_meters * 1850.0, 2),
-            status="Government Verified"
+            valuation_estimate_inr=round(
+                survey.area_sq_meters * 1850.0,
+                2,
+            ),
+            status="Government Verified",
         )
+
+    # -----------------------------------------------------
+    # User Profile
+    # -----------------------------------------------------
 
     async def get_user_profile(self) -> UserSchema:
         return self._user

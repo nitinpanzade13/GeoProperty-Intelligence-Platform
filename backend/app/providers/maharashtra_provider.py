@@ -363,9 +363,6 @@ class MaharashtraLandRecordsProvider(LandRecordsProvider):
             "property_id": f"PROP-{gis_code}-{survey_number}",
             "survey_number": str(raw_json.get("plotno") or survey_number),
             "area_sq_meters": area_val,
-            "pot_kharaba_sq_meters": float(
-                raw_json.get("pot_kharaba_sq_meters") or 0.0
-            ),
             "plot_id": plot_id,
             "gis_code": gis_code,
             "wkt": wkt_geom,

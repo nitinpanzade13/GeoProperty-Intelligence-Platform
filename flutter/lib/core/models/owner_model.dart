@@ -1,46 +1,41 @@
 import 'package:equatable/equatable.dart';
 
 class OwnerModel extends Equatable {
-  final String ownerId;
-  final String fullName;
-  final double ownershipPercentage;
+  final String ownerName;
   final String? khataNumber;
-  final String? contactPhone;
+  final double totalArea;
+  final double potKharaba;
 
   const OwnerModel({
-    required this.ownerId,
-    required this.fullName,
-    required this.ownershipPercentage,
+    required this.ownerName,
     this.khataNumber,
-    this.contactPhone,
+    required this.totalArea,
+    required this.potKharaba,
   });
 
   factory OwnerModel.fromJson(Map<String, dynamic> json) {
     return OwnerModel(
-      ownerId: json['owner_id'] as String? ?? '',
-      fullName: json['full_name'] as String? ?? 'Unknown',
-      ownershipPercentage: (json['ownership_percentage'] as num?)?.toDouble() ?? 100.0,
+      ownerName: json['owner_name'] as String? ?? 'Unknown',
       khataNumber: json['khata_number'] as String?,
-      contactPhone: json['contact_phone'] as String?,
+      totalArea: (json['total_area'] as num?)?.toDouble() ?? 0.0,
+      potKharaba: (json['pot_kharaba'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'owner_id': ownerId,
-      'full_name': fullName,
-      'ownership_percentage': ownershipPercentage,
+      'owner_name': ownerName,
       'khata_number': khataNumber,
-      'contact_phone': contactPhone,
+      'total_area': totalArea,
+      'pot_kharaba': potKharaba,
     };
   }
 
   @override
   List<Object?> get props => [
-        ownerId,
-        fullName,
-        ownershipPercentage,
+        ownerName,
         khataNumber,
-        contactPhone,
+        totalArea,
+        potKharaba,
       ];
 }

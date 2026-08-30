@@ -83,16 +83,19 @@ class PropertyCacheRepository:
                 if db_property:
 
                     db_property.gis_code = property_data.gis_code
+
                     db_property.survey_number = (
                         property_data.survey_number
                     )
-                    db_property.plot_id = property_data.plot_id
+
+                    db_property.plot_id = (
+                        property_data.plot_id
+                    )
+
                     db_property.area_sq_meters = (
                         property_data.area_sq_meters
                     )
-                    db_property.pot_kharaba_sq_meters = (
-                        property_data.pot_kharaba_sq_meters
-                    )
+
                     db_property.geometry = geometry
 
                 else:
@@ -103,9 +106,6 @@ class PropertyCacheRepository:
                         survey_number=property_data.survey_number,
                         plot_id=property_data.plot_id,
                         area_sq_meters=property_data.area_sq_meters,
-                        pot_kharaba_sq_meters=(
-                            property_data.pot_kharaba_sq_meters
-                        ),
                         geometry=geometry,
                     )
 
@@ -122,10 +122,7 @@ class PropertyCacheRepository:
                 )
 
                 # -------------------------------------------------
-                # Deduplicate owners returned by remote API
-                #
-                # Same owner is considered duplicate when all
-                # fields used by the DB unique constraint are same.
+                # Deduplicate owners
                 # -------------------------------------------------
 
                 unique_owners = set()
@@ -136,8 +133,8 @@ class PropertyCacheRepository:
                         property_id,
                         owner.owner_name,
                         owner.khata_number,
-                        owner.area_share_sq_meters,
-                        owner.ownership_percentage,
+                        owner.total_area,
+                        owner.pot_kharaba,
                     )
 
                     if owner_key in unique_owners:
@@ -145,16 +142,16 @@ class PropertyCacheRepository:
 
                     unique_owners.add(owner_key)
 
+                    # -------------------------------------------------
+                    # Save owner
+                    # -------------------------------------------------
+
                     db_owner = PropertyOwner(
                         property_id=property_id,
                         owner_name=owner.owner_name,
                         khata_number=owner.khata_number,
-                        area_share_sq_meters=(
-                            owner.area_share_sq_meters
-                        ),
-                        ownership_percentage=(
-                            owner.ownership_percentage
-                        ),
+                        total_area=owner.total_area,
+                        pot_kharaba=owner.pot_kharaba,
                     )
 
                     self.db.add(db_owner)

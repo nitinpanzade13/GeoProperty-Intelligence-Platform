@@ -14,7 +14,9 @@ from app.utils.owner_parser import OwnerParser
 class PropertyParser:
 
     @staticmethod
-    def parse_raw_property(raw_data: Dict[str, Any]) -> Property:
+    def parse_raw_property(
+        raw_data: Dict[str, Any],
+    ) -> Property:
 
         owners_raw = raw_data.get("owners", [])
 
@@ -22,18 +24,32 @@ class PropertyParser:
         if owners_raw and isinstance(owners_raw[0], Owner):
             owners_list = owners_raw
         else:
-            owners_list = OwnerParser.parse_owners(owners_raw)
+            owners_list = OwnerParser.parse_owners(
+                owners_raw
+            )
+
+        # --------------------------------------------------
+        # Geometry
+        # --------------------------------------------------
 
         polygons: List[List[Point2D]] = []
 
-        wkt = raw_data.get("wkt") or raw_data.get("wkt_geometry")
+        wkt = (
+            raw_data.get("wkt")
+            or raw_data.get("wkt_geometry")
+        )
 
         if wkt:
-            polygons = GeometryParser.parse_wkt_to_coordinates(wkt)
+            polygons = (
+                GeometryParser.parse_wkt_to_coordinates(wkt)
+            )
 
         elif "polygon" in raw_data:
 
-            pts = raw_data["polygon"].get("points", [])
+            pts = raw_data["polygon"].get(
+                "points",
+                [],
+            )
 
             polygons = [[
                 Point2D(
@@ -43,16 +59,9 @@ class PropertyParser:
                 for p in pts
             ]]
 
-        polygon = Polygon(
-            polygon_id=str(
-                raw_data.get("polygon_id")
-                or raw_data["plot_id"]
-            ),
-            points=polygons[0] if polygons else [],
-            area_sq_meters=float(raw_data["area_sq_meters"]),
-        )
-
-        extent = GeometryParser.calculate_extent(polygons)
+        # --------------------------------------------------
+        # Basic validation
+        # --------------------------------------------------
 
         plot_id = raw_data.get("plot_id")
 
@@ -64,22 +73,53 @@ class PropertyParser:
         if not gis_code:
             raise ValueError("Missing GIS code")
 
-        return Property(
+        # --------------------------------------------------
+        # Polygon
+        # --------------------------------------------------
 
+        polygon = Polygon(
+            polygon_id=str(
+                raw_data.get("polygon_id")
+                or plot_id
+            ),
+            points=(
+                polygons[0]
+                if polygons
+                else []
+            ),
+            area_sq_meters=float(
+                raw_data.get(
+                    "area_sq_meters",
+                    0.0,
+                )
+            ),
+        )
+
+        # --------------------------------------------------
+        # Extent
+        # --------------------------------------------------
+
+        extent = GeometryParser.calculate_extent(
+            polygons
+        )
+
+        # --------------------------------------------------
+        # Property
+        # --------------------------------------------------
+
+        return Property(
             property_id=str(
                 raw_data.get("property_id")
                 or plot_id
             ),
 
-            survey_number=str(raw_data["survey_number"]),
-
-            area_sq_meters=float(
-                raw_data["area_sq_meters"]
+            survey_number=str(
+                raw_data["survey_number"]
             ),
 
-            pot_kharaba_sq_meters=float(
+            area_sq_meters=float(
                 raw_data.get(
-                    "pot_kharaba_sq_meters",
+                    "area_sq_meters",
                     0.0,
                 )
             ),

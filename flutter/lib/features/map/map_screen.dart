@@ -483,9 +483,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         final index = entry.key;
                         final owner = entry.value;
 
-                        final ownerName = owner.fullName.trim().isEmpty
+                        final ownerName = owner.ownerName.trim().isEmpty
                             ? "No Data Found"
-                            : owner.fullName;
+                            : owner.ownerName;
 
                         final khata = owner.khataNumber == null ||
                                 owner.khataNumber!.trim().isEmpty
@@ -514,8 +514,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                 khata,
                               ),
                               _infoTile(
-                                "Ownership",
-                                "${owner.ownershipPercentage.toStringAsFixed(2)}%",
+                                "Total Area",
+                                owner.totalArea.toStringAsFixed(4),
+                              ),
+                              _infoTile(
+                                "Pot Kharaba",
+                                owner.potKharaba.toStringAsFixed(4),
                               ),
                             ],
                           ),

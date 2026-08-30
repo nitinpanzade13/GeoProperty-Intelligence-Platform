@@ -29,8 +29,8 @@ class Village:
 class Owner:
     owner_name: str
     khata_number: str
-    area_share_sq_meters: float
-    ownership_percentage: float = 100.0
+    total_area: float = 0.0
+    pot_kharaba: float = 0.0
 
 
 @dataclass
@@ -68,7 +68,6 @@ class Property:
     property_id: str
     survey_number: str
     area_sq_meters: float
-    pot_kharaba_sq_meters: float
     plot_id: str
     gis_code: str
     owners: List[Owner] = field(default_factory=list)
